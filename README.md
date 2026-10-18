@@ -1,6 +1,6 @@
 # Brief
 
-![Brief icon](Resources/Brief.png)
+<img src="Resources/Brief.png" width="128" alt="Brief icon">
 
 Local, coding-centric dictation for macOS. Speak your next brief.
 

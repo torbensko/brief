@@ -1,4 +1,4 @@
-# LocalDictation — product and implementation specification
+# Brief — product and implementation specification
 
 ## Purpose and authority
 

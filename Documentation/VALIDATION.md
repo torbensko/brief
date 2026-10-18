@@ -109,3 +109,13 @@ Persist a separate delivery explanation on the session, displayed on the result 
 The result panel now dismisses after 30 seconds even when a transcript exists; reopening starts a fresh timeout. Old text is not shown automatically at launch. Recording and processing remain visible. The isolated preview was visible initially and no window could be inspected after the timeout (the UI inspector timed out); this is consistent with hiding, but not a precise timing measurement. Normal app reopened afterwards.
 
 60 tests pass in nine suites, including recognized text editors, blocked unsafe targets, and delivery-explanation persistence after copying. Packaging/signature checks and the MLX self-test pass. Actual insertion into GPT remains unverified because computer-use access to that app is prohibited; the next user attempt now supplies a durable delivery explanation.
+
+## Brief v1 publishing preparation — 19 October 2026
+
+Renamed the displayed app and executable to Brief while retaining the existing bundle identifier and Application Support location. Added a full-bleed blue icon master and derived ICNS sizes, with no border or outer corner mask. VERSION is 1.0.0.
+
+Added GitHub CI and a signing/notarisation release workflow based on Safari Profile Studio. The five signing secrets use the same names. Distribution is Apple Silicon only. Public signed releases remain gated until the owner configures signing and either dispatches the workflow or enables VERSION-triggered releases.
+
+Local verification: 60 tests pass; release build completes; DMG checksum verification and ZIP integrity checks pass; the release worker passes the MLX Metal self-test. The renamed executable reads the existing saved context successfully. Restored the local development signature after producing the explicitly unsigned preview archives. GitHub's first clean-runner test step also passed; packaging was still running when this note was written.
+
+Published source at https://github.com/torbensko/brief and the website entry at https://torbensko.com/software/brief/. Both the website build and visual review passed. The live page was verified after deployment. It links to source and Releases without advertising an unavailable DMG.
