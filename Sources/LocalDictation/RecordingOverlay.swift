@@ -19,7 +19,7 @@ struct RecordingOverlay: View {
                     ProgressView().controlSize(.small)
                     Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
                 } else if controller.phase == .idle {
-                    Button("History") { controller.showHistory?() }.controlSize(.small)
+                    Button("Recent") { controller.showHistory?() }.controlSize(.small)
                     Button { controller.hideOverlay?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
                 }
             }
@@ -29,12 +29,20 @@ struct RecordingOverlay: View {
                         Capsule().fill(.tint).frame(width: 10, height: max(3, CGFloat(level) * 28))
                     }
                 }.frame(height: 30).frame(maxWidth: .infinity)
-                Text("\(controller.settings.recordShortcut.display) to finish · audio is being saved")
+                Text("\(controller.settings.recordShortcut.display) to finish · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
+            } else if controller.phase == .idle, let latest = controller.latestTranscript {
+                Text(latest.text).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Button("Copy last text", systemImage: "doc.on.doc") { controller.copy(latest) }
+                        .buttonStyle(.borderedProminent).controlSize(.small)
+                    Spacer()
+                    Text(controller.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
             } else {
                 Text(controller.message).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.padding(18).frame(width: 446, height: 144, alignment: .topLeading)
+        }.padding(18).frame(width: 446, height: 170, alignment: .topLeading)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }

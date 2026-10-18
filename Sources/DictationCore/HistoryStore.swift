@@ -91,6 +91,14 @@ public actor HistoryStore {
             session.note = attempt.warnings.isEmpty ? nil : attempt.warnings.joined(separator: "\n")
         }
     }
+    public func prune(_ policy: RecoveryPolicy, protecting: Set<UUID> = [], now: Date = Date()) throws {
+        try policy.validate()
+        let current = try snapshot()
+        for id in policy.expired(in: current.sessions, protecting: protecting, now: now) {
+            try delete(id)
+        }
+    }
+
     public func deleteAudio(_ id: UUID) throws {
         var session = try read(id)
         guard ![.recording, .transcribing].contains(session.state) else {

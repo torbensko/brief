@@ -12,6 +12,8 @@ public struct RepositoryVocabulary: Codable, Equatable, Sendable {
     public var scannedAt: Date
     public var projects: [RepositoryProject]
     public var warnings: [String]
+    public var detectedTypes: [String]?
+    public var projectTypes: [String] { detectedTypes ?? [] }
     // Older caches contained dependencies and internal package names. Rescan before using them.
     public var names: [String] {
         guard schema == 2 else { return [] }
@@ -29,6 +31,7 @@ public enum RepositoryScanner {
         var warnings: [String] = []
         var seenRoots = Set<String>()
         var seenNames = Set<String>()
+        var detectedTypes = Set<String>()
         for folder in children.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             try Task.checkCancellation()
             let info = try folder.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
@@ -36,6 +39,7 @@ public enum RepositoryScanner {
                   !["node_modules", "build", "dist", "vendor"].contains(folder.lastPathComponent) else { continue }
             let project = canonicalRepository(folder)
             guard seenRoots.insert(project.path).inserted else { continue }
+            detectedTypes.formUnion(CodingVocabulary.detect(in: project))
             var declared: String?
             for filename in ["package.json", "composer.json"] {
                 guard let text = read(project.appendingPathComponent(filename)) else { continue }
@@ -63,7 +67,7 @@ public enum RepositoryScanner {
             guard let name, seenNames.insert(name.lowercased()).inserted else { continue }
             projects.append(RepositoryProject(path: project.path, names: [name]))
         }
-        return RepositoryVocabulary(root: root.path, scannedAt: Date(), projects: projects, warnings: warnings)
+        return RepositoryVocabulary(root: root.path, scannedAt: Date(), projects: projects, warnings: warnings, detectedTypes: detectedTypes.sorted())
     }
 
     private static func read(_ url: URL) -> String? {

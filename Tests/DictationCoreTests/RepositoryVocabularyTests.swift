@@ -66,7 +66,7 @@ struct RepositoryVocabularyTests {
         #expect(settings.vocabularyContext.contains("AlphaTerm"))
         #expect(settings.vocabularyContext.contains("BetaTerm"))
         #expect(settings.vocabularyContext.contains("MyExtraWord"))
-        #expect(!settings.vocabularyContext.contains("JSON"))
+        #expect(settings.vocabularyContext.contains("JSON"))
     }
     @Test func catalogSurvivesRestart() throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
@@ -90,7 +90,8 @@ struct RepositoryVocabularyTests {
         let data = Data(#"{"root":"/tmp","scannedAt":0,"projects":[{"path":"/tmp/a","names":["InternalPackage"],"technologies":["React"]}],"warnings":[]}"#.utf8)
         let catalog = try JSONDecoder().decode(RepositoryVocabulary.self, from: data)
         var settings = AppSettings(); settings.repositoryVocabulary = catalog
-        #expect(settings.vocabularyContext.isEmpty)
+        #expect(!settings.vocabularyContext.contains("InternalPackage"))
+        #expect(!settings.vocabularyContext.contains("React"))
     }
     @Test func actualRepositoryScanWhenRequested() throws {
         guard let path = ProcessInfo.processInfo.environment["DICTATION_SCAN_TEST_ROOT"] else { return }

@@ -40,20 +40,20 @@ The desired experience is ChatGPT-style record-then-transcribe, not conversation
 
 ### Explicit non-goals
 
-No live transcript, partial-text insertion, rolling transcript corrections, automatic stopping on silence, general voice-command framework, code generation, mandatory LLM rewriting, mobile app, Blint dependency, or App Store distribution work for the first version. Do not silently rewrite meaning to make prose more elegant.
+No mandatory live transcript, partial-text insertion, rolling transcript corrections, automatic stopping on silence, general voice-command framework, code generation, mandatory LLM rewriting, mobile app, Blint dependency, or App Store distribution work for the first version. Do not silently rewrite meaning to make prose more elegant.
 
 ## 2. Primary interaction
 
 1. A configurable global shortcut starts recording from any normal application.
 2. Capture the intended destination before displaying app UI, if a destination can be identified.
 3. Create a durable history entry and begin saving microphone audio immediately.
-4. Display a small non-activating waveform/level overlay with duration and recording status. It must not take focus from the target application.
+4. Display a small non-activating waveform/level overlay with duration and recording status. It must not take focus from the target application. The waveform indicates microphone activity, not live interpretation.
 5. Pauses do not stop recording. The same shortcut explicitly stops it.
 6. Finalise the saved recording and transcribe it locally. Show processing status, not provisional transcript text.
 7. Save the completed recognition result before attempting insertion.
 8. Insert only when the captured destination is still suitable and the delivery policy permits it. Otherwise keep the result pending.
 9. A separate configurable shortcut inserts the latest pending result into a field the user deliberately selected.
-10. History remains available regardless of delivery outcome.
+10. Show the completed text in a small, non-activating corner card with a quick copy action, even after successful insertion. Recent dictation remains recoverable regardless of delivery outcome, within the selected retention limit.
 
 The menu-bar menu should expose Record/Stop, Insert Pending, History, Settings, model status, and Quit. A model load or inference job must not block the main thread.
 
@@ -115,29 +115,19 @@ Refresh locally, cache results, and never execute repository code. Retain the la
 
 These are evaluation examples, not replacement rules or a promise of perfect transcription.
 
-## 5. Durable history / scratchpad
+## 5. Recent dictation: a small recovery buffer
 
-Persistence is foundational, not a follow-up feature. Create recovery metadata before recording. Write audio incrementally, with an explicit flushing policy that balances recoverability and audio capture stability. Do not keep the sole copy in RAM until recording ends.
+The purpose is to recover the last piece of dictated content when focus was wrong, insertion failed, or the user needs to copy it again. It is **not** a permanent chronological record of everything spoken. This supersedes the previous indefinite-history requirement.
 
-The audio callback must not perform model inference, filesystem synchronisation, or other unbounded work. Use a serial writer path and handle write errors, device changes, microphone disconnects, and disk-full conditions visibly.
+Default to keeping the latest entry. At the top of Recent, provide a simple count-or-time control: keep the last N entries or keep entries for N minutes (five minutes is the initial value when switching to time mode). Expiry deletes audio and transcript metadata together, including delivered and pending results. Clearly disclose automatic deletion. Count mode may keep the previous usable transcript alongside a newer failed attempt, so a failure cannot displace the last recoverable text. Protect active recording/inference; apply cleanup at launch, after operations, after retention changes, and periodically while idle. Time retention starts when the result becomes available, so long dictations still have a recovery window. Copying must not restart that window.
 
-Maintain at least:
+Persist recovery metadata before capture and write audio incrementally on a bounded writer queue. Keep recognition and delivery states separate. Save completed text before insertion. Recover interrupted work on launch; isolate unreadable metadata and report it rather than blindly deleting unknown files. Retain audio for retry within the recovery policy. A process crash must not turn a failed paste into lost content.
 
-- Session identity and timestamps; audio location, sample format/rate, frame count, and duration.
-- Processing state, recoverable errors, detected broad project types, vocabulary snapshot, and language.
-- Append-only recognition attempts with raw text, engine identity, settings, and warnings.
-- User-edited text separately from original recognition.
-- Delivery status and an appropriately limited target-application description.
+The floating card belongs in a screen corner, remains available while the result is retained, and offers Copy and Recent without taking focus from the destination. Users may dismiss and reopen it. A persistent latest result does not require a live transcript. Show waveform/duration while recording and a processing state while analyzing the completed recording. Real-time text is optional future work only if it can be added without sacrificing quality or distracting from the main workflow.
 
-Recognition state and delivery state must be independent. Sending a paste event is not proof of receipt. A failed insertion must never turn a completed transcript into lost work. Repeated explicit insertion may be allowed, but must not be triggered automatically as an ambiguous fallback that could duplicate text.
+Recent should open on the latest usable result and support copying, explicit staging for insertion, editing, replay/export, retry, and deletion. Older recordings are not needed as an archive. Keep the context and raw recognition attempt with each retained entry for reproducibility, without collecting unrelated target-field content.
 
-Use atomic metadata updates and a versioned schema. Recover interrupted sessions at launch. Isolate a malformed history entry rather than hiding the entire history. Preserve playable/retranscribable audio up to the last successfully persisted sample; do not promise zero loss through sudden power failure.
-
-History needs an editable transcript detail view, original/previous recognition attempts, pending selection, copy, insert/stage, audio playback, export, retranscription, and explicit deletion. Search is desirable as history grows. Retranscription may reuse the original vocabulary snapshot or explicitly use current settings.
-
-For initial safety, retain audio and text until explicit deletion. Independent audio/text retention settings are a later enhancement. Never delete the only recovery recording because a processing or insertion request failed. Export must not overwrite the internal original.
-
-Use local Application Support storage with appropriately restrictive permissions. Do not place personal recordings in the Git repository. Do not claim encryption beyond what is actually implemented; FileVault/OS protection and app-level encryption are distinct.
+Store recovery data in local Application Support with restrictive permissions, outside Git. Cleanup removes app-managed files, not copies already placed on the clipboard, pasted elsewhere, exported, or captured in OS backups. Do not promise encryption beyond actual OS/app protections.
 
 ## 6. Destination and insertion safety
 
@@ -175,7 +165,7 @@ The exact minimum macOS/toolchain version must follow verified dependency requir
 
 ### Automated tests
 
-Cover vocabulary merging/limits, durable settings/history, recovery after interrupted jobs, original-transcript preservation, retry history, safe deletion/export, sample coverage, token-budget warnings, cancellation behaviour, focus changes, unknown/secure fields, terminal policy, and shortcut validation. Add macOS-specific integration coverage where practical.
+Cover vocabulary merging/limits, durable settings/history, recovery after interrupted jobs, original-transcript preservation, retry history, safe deletion/export, count/time retention, active-work protection, recent-card copy/reopen, sample coverage, token-budget warnings, cancellation behaviour, focus changes, unknown/secure fields, terminal policy, and shortcut validation. Add macOS-specific integration coverage where practical.
 
 Existing Linux tests only exercise `DictationCore`; they are not evidence that AppKit, audio hardware, MLX inference, or paste delivery works.
 
@@ -206,7 +196,7 @@ The quality target is lower correction effort and fewer important meaning/name e
 
 Continue in this order: inspect the handoff; resolve/build on macOS; complete application lifecycle and packaging; prove recording/recovery; verify local inference and context forwarding; verify UI/hotkeys; exercise safe delivery; run the accuracy and failure tests; document actual results and commit.
 
-A usable first version is a locally buildable and launchable app that records by shortcut, processes the complete saved recording locally, uses project names and targeted coding disambiguation, preserves recoverable history, and safely inserts or retains the result. A collection of uncompiled native source files does not meet this definition.
+A usable first version is a locally buildable and launchable app that records by shortcut, processes the complete saved recording locally, uses project names and targeted coding disambiguation, preserves recent recoverable content, and safely inserts or retains the result. A collection of uncompiled native source files does not meet this definition.
 
 The product quality goal is not complete until representative speech demonstrates an improvement over default macOS dictation for the intended workflow, and delivery in Blint has been exercised. A runnable app is an engineering milestone, not evidence of that quality.
 

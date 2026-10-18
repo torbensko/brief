@@ -19,7 +19,7 @@ struct SettingsView: View {
             TabView {
                 general.tabItem { Label("General", systemImage: "slider.horizontal.3") }
                 model.tabItem { Label("Model", systemImage: "cpu") }
-                vocabulary.tabItem { Label("Project names", systemImage: "chevron.left.forwardslash.chevron.right") }
+                vocabulary.tabItem { Label("Recognition", systemImage: "chevron.left.forwardslash.chevron.right") }
                 shortcuts.tabItem { Label("Shortcuts", systemImage: "keyboard") }
             }.padding(12)
             Divider()
@@ -41,6 +41,7 @@ struct SettingsView: View {
             // A background scan must not erase unsaved edits in other settings tabs.
             draft.repositoryVocabulary = updated.repositoryVocabulary
             draft.repositoriesPath = updated.repositoriesPath
+            draft.recoveryPolicy = updated.recoveryPolicy
             if updated.modelDirectory != previous.modelDirectory { draft.modelDirectory = updated.modelDirectory }
         }
     }
@@ -71,7 +72,7 @@ struct SettingsView: View {
                 Button("Refresh permission status") { permissionsVersion += 1 }
             }.id(permissionsVersion)
             Section("Local storage") {
-                Text("Audio and transcripts are retained until you explicitly delete them. Nothing is uploaded for recognition. Model downloads are the only built-in network operation.")
+                Text("Recent dictation is a recovery buffer. By default it keeps the latest entry; change the count or time limit at the top of Recent. Older audio and text are automatically deleted. Recognition stays local.")
                 Text(controller.root.path).font(.caption.monospaced()).textSelection(.enabled)
                 Button("Open storage folder") { NSWorkspace.shared.open(controller.root) }
                 Text("Files are not encrypted by this app. macOS backups and other software with access to your account may copy them. Use FileVault and manage your backups accordingly.")
@@ -126,7 +127,7 @@ struct SettingsView: View {
         Form {
             Section("Recognize your project names") {
                 Text("Names like Blint help dictation recognize the projects you talk about.")
-                Text("Names from all your projects are available together. Refreshed locally when the app opens.")
+                Text("Project names and a small curated coding vocabulary guide recognition together. Refreshed locally when the app opens.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Your repositories") {
@@ -163,6 +164,16 @@ struct SettingsView: View {
                             Text(catalog.warnings.joined(separator: "\n")).font(.caption).textSelection(.enabled)
                         }
                     }
+                }
+            }
+            Section("Coding disambiguation") {
+                Text("Helps recognize terms such as JSON in coding speech. These are spelling hints, not automatic replacements for names like Jason.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Project types: " + (controller.settings.repositoryVocabulary?.projectTypes.joined(separator: ", ") ?? "Scanning…"))
+                    .font(.caption)
+                DisclosureGroup("Recognition hints") {
+                    Text(CodingVocabulary.terms(for: controller.settings.repositoryVocabulary?.projectTypes ?? []).joined(separator: ", "))
+                        .font(.caption).textSelection(.enabled)
                 }
             }
             Section("Optional extra spellings") {

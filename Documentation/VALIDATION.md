@@ -48,3 +48,20 @@ The rebuilt app's Coding screen was visually inspected and showed 38 repositorie
 Supersedes the broad vocabulary update above. Removed built-in coding concepts, dependency/framework extraction, recursive package indexing, and technology UI. The scanner now extracts one main name per root project and deduplicates Git worktrees and names. Earlier broad caches are excluded pending refresh; explicit custom spellings remain supported.
 
 Verified 43 tests, including dependency/internal-package exclusion, worktree deduplication, version suffix cleanup, old-cache exclusion, and the actual repos scan. The result is 17 project names and 230 bytes of context, including the exact spelling Blint. The signed app was rebuilt, restarted, and its Project names tab verified to show the saved dictionary. Recognition accuracy still requires an installed model and actual speech testing.
+
+## Coding context and recent recovery — 19 October 2026
+
+Implemented the combined product intent: project-name hints plus small, manually curated coding-disambiguation lists selected by broad project types. Detection inspects shallow filenames/manifests and skips generated/dependency folders; it does not import dependency or symbol inventories. The actual repos scan still yields 17 distinct project names; combined context is 506 bytes.
+
+Replaced indefinite retention with a recent recovery policy. Default: latest entry; count and minutes (initially five) controls are at the top of Recent. Expiry removes both audio and metadata. Active processing suspends cleanup. Count mode additionally protects the last usable transcript when a newer attempt fails. Time expiry is measured from the result's availability, and copying does not renew it. Cleanup runs at startup, after idle updates, on policy changes, and every ten seconds while idle.
+
+The bottom-left non-activating card shows microphone levels while recording, processing status after stopping, and the latest retained transcript with Copy last text and Recent after recognition. Successful insertion does not dismiss the result. The user can dismiss it and reopen it from the menu bar.
+
+Verification:
+
+- 51 tests pass in seven suites, including removal of audio and metadata, count/time expiry, active protection, long recordings receiving a recovery window, failed-attempt protection, settings compatibility, and focused coding context/type detection.
+- Packaged app builds, signature verification passes, and packaged MLX Metal self-test passes.
+- Isolated UI preview verified Recent layout, count-to-five-minute selection, opening Recent from the floating card, and one-click copying with visible confirmation. The preview uses a temporary store and a clearly identified sample transcript, not actual speech recognition; its files are removed on exit.
+- UI preview can be repeated with `open build/LocalDictation.app --args --preview-recovery` after quitting the normal app. `--preview-card` opens just the recovery card. Do not grant permissions or record in the preview; it is for layout checks.
+
+Still outstanding: model installation and real inference, microphone waveform/capture on physical hardware, comparison with macOS dictation, and focus/insertion tests in Blint. Model download approval was requested for an inference test; no model weights were downloaded during these checks. Passing these tests does not establish speech accuracy.

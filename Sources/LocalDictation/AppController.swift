@@ -35,7 +35,9 @@ final class AppController: ObservableObject {
     private let installer = ModelInstaller()
     private var operationTask: Task<Void, Never>?
     private var overlayDismissTask: Task<Void, Never>?
+    private var recoveryTimer: Timer?
     private var ticker: Timer?
+    var latestTranscript: DictationSession? { sessions.first { $0.canInsert } }
     private var tickCount = 0
     private var target: FocusTarget?
     private var focusChanged = false
@@ -54,8 +56,8 @@ final class AppController: ObservableObject {
         !settings.modelDirectory.isEmpty && FileManager.default.fileExists(atPath: settings.modelDirectory)
     }
 
-    init() throws {
-        root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+    init(storageRoot: URL? = nil) throws {
+        root = try storageRoot ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                            appropriateFor: nil, create: true).appendingPathComponent("LocalDictation", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         settingsURL = root.appendingPathComponent("settings.json")
@@ -73,6 +75,13 @@ final class AppController: ObservableObject {
     }
     func bootstrap() async {
         await refreshHistory(recover: true)
+        recoveryTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, !self.isBusy else { return }
+                await self.refreshHistory()
+            }
+        }
+        if latestTranscript != nil { showOverlay?() }
         scanRepositories(path: settings.effectiveRepositoriesPath)
         do { try hotKeys.register(settings) } catch { report(error) }
         if modelAvailable { warmModel() }
@@ -80,8 +89,21 @@ final class AppController: ObservableObject {
     }
     func refreshHistory(recover: Bool = false) async {
         do {
-            let snapshot = try await store.snapshot(recoverInterrupted: recover)
+            _ = try await store.snapshot(recoverInterrupted: recover)
+            if !isBusy {
+                // Do not displace the last usable transcript merely because a newer attempt failed.
+                let before = try await store.snapshot()
+                let protected: Set<UUID> = settings.effectiveRecoveryPolicy.mode == .count
+                    ? Set(before.sessions.first(where: { $0.canInsert }).map { [$0.id] } ?? []) : []
+                try await store.prune(settings.effectiveRecoveryPolicy, protecting: protected)
+            }
+            let snapshot = try await store.snapshot()
+            if sessions.contains(where: { old in !snapshot.sessions.contains(where: { $0.id == old.id }) }) { stopPlayback() }
             sessions = snapshot.sessions; historyWarnings = snapshot.warnings
+            if selectedSessionID == nil || !sessions.contains(where: { $0.id == selectedSessionID }) {
+                selectedSessionID = latestTranscript?.id ?? sessions.first?.id
+            }
+            if sessions.isEmpty && !isBusy { hideOverlay?() }
         } catch { report(error) }
     }
     func apply(_ updated: AppSettings) throws {
@@ -97,6 +119,7 @@ final class AppController: ObservableObject {
         settings = updated
         settingsDidChange?()
         errorMessage = nil
+        Task { await refreshHistory() }
     }
     func toggleRecording() {
         overlayDismissTask?.cancel()
@@ -199,7 +222,7 @@ final class AppController: ObservableObject {
         }
     }
     private func transcribeSession(_ session: DictationSession, automaticInsertion: Bool) async {
-        defer { phase = .idle; activeSessionID = nil; stopTicker(); endActivity() }
+        defer { phase = .idle; activeSessionID = nil; stopTicker(); endActivity(); Task { await refreshHistory() } }
         do {
             guard modelAvailable else {
                 throw DictationError.message("Audio saved. Download or choose a local model in Settings, then retry from History.")
@@ -290,9 +313,15 @@ final class AppController: ObservableObject {
         try await store.update(id) { $0.editedText = text; $0.delivery = .pending }
         await refreshHistory()
     }
+    func setRecoveryPolicy(_ policy: RecoveryPolicy) {
+        do { var updated = settings; updated.recoveryPolicy = policy; try apply(updated) }
+        catch { report(error) }
+    }
+    func showLatestTranscript() { overlayDismissTask?.cancel(); showOverlay?() }
     func copy(_ session: DictationSession) {
         NSPasteboard.general.clearContents()
         guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
+        message = "Copied · available in Recent until it expires"
         Task {
             do { try await store.update(session.id) { $0.delivery = .copied }; await refreshHistory() }
             catch { report(error) }
@@ -400,6 +429,7 @@ final class AppController: ObservableObject {
         if phase == .recording { phase = .stopping; await finishRecording(transcribe: false) }
         operationTask?.cancel(); worker.stop()
         await operationTask?.value
+        recoveryTimer?.invalidate(); recoveryTimer = nil
         hotKeys.unregister(); stopTicker(); endActivity(); stopPlayback()
     }
     func report(_ error: Error) {
@@ -444,7 +474,7 @@ final class AppController: ObservableObject {
         overlayDismissTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(7)) } catch { return }
             guard let self, self.phase == .idle else { return }
-            self.hideOverlay?()
+            if self.latestTranscript == nil { self.hideOverlay?() }
         }
     }
 }

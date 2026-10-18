@@ -19,7 +19,7 @@ struct HistoryView: View {
                 Image(systemName: "waveform.circle.fill").font(.system(size: 30)).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("LocalDictation").font(.title2.bold())
-                    Text("Your words. On your Mac.").font(.caption).foregroundStyle(.secondary)
+                    Text("Recent dictation · recover text that missed its destination").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button(controller.phase == .recording ? "Stop recording" : "Record", systemImage: controller.phase == .recording ? "stop.fill" : "mic.fill") {
@@ -28,6 +28,20 @@ struct HistoryView: View {
                 Button("Settings", systemImage: "gearshape") { controller.showSettings?() }
                     .labelStyle(.iconOnly).help("Settings")
             }.padding(20)
+            HStack {
+                Text("Keep")
+                Picker("Retention", selection: Binding(get: { controller.settings.effectiveRecoveryPolicy.mode }, set: {
+                    controller.setRecoveryPolicy(RecoveryPolicy(mode: $0, value: $0 == .count ? 1 : 5))
+                })) {
+                    Text("last entries").tag(RecoveryPolicy.Mode.count)
+                    Text("for minutes").tag(RecoveryPolicy.Mode.minutes)
+                }.labelsHidden().frame(width: 140)
+                Stepper(value: Binding(get: { controller.settings.effectiveRecoveryPolicy.value }, set: {
+                    controller.setRecoveryPolicy(RecoveryPolicy(mode: controller.settings.effectiveRecoveryPolicy.mode, value: $0))
+                }), in: 1...100) { Text("\(controller.settings.effectiveRecoveryPolicy.value)").monospacedDigit() }.frame(width: 85)
+                Spacer()
+                Text("Older audio and text are automatically deleted.").font(.caption).foregroundStyle(.secondary)
+            }.frame(height: 36).padding(.horizontal, 20).padding(.bottom, 12).layoutPriority(1).disabled(controller.isBusy)
             Divider()
             if let error = controller.errorMessage {
                 HStack {
@@ -56,7 +70,7 @@ struct HistoryView: View {
                             }.padding(.vertical, 5).tag(session.id)
                         }
                     }.listStyle(.sidebar)
-                    Text("\(filtered.count) recordings · stored locally")
+                    Text("\(filtered.count) recent entries · stored locally")
                         .font(.caption).foregroundStyle(.secondary)
                     if !controller.historyWarnings.isEmpty {
                         Text("Some history entries could not be read. Their files have not been changed.")
@@ -71,9 +85,9 @@ struct HistoryView: View {
                         .frame(minWidth: 440, maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ContentUnavailableView {
-                        Label("Nothing gets thrown away", systemImage: "tray.full")
+                        Label("Your latest dictation, recoverable", systemImage: "tray")
                     } description: {
-                        Text("Record with \(controller.settings.recordShortcut.display).\nSaved audio and completed transcriptions appear here, even when no input field is focused.")
+                        Text("Record with \(controller.settings.recordShortcut.display).\nRecent audio and transcripts stay here briefly, even when insertion fails.")
                     }.frame(minWidth: 440, maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -88,7 +102,7 @@ struct HistoryView: View {
                 Text(controller.settings.insertShortcut.display + " inserts pending")
                     .font(.caption.monospaced()).foregroundStyle(.secondary)
             }.padding(12)
-        }.frame(minWidth: 820, minHeight: 540)
+        }.frame(minWidth: 820, minHeight: 680)
     }
 }
 

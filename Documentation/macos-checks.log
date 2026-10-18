@@ -1,97 +1,124 @@
-Test Suite 'All tests' started at 2026-10-19 09:00:49.229.
-Test Suite 'All tests' passed at 2026-10-19 09:00:49.231.
-	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.002) seconds
+Test Suite 'All tests' started at 2026-10-19 09:33:45.433.
+Test Suite 'All tests' passed at 2026-10-19 09:33:45.434.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
 􀟈  Test run started.
 􀄵  Testing Library Version: 2084
 􀄵  Target Platform: arm64e-apple-macos14.0
-􀟈  Suite "Durable history" started.
+􀟈  Suite "Project name dictionary" started.
+􀟈  Suite "Safe delivery" started.
 􀟈  Suite "Recognition context" started.
 􀟈  Suite "Audio completeness" started.
-􀟈  Suite "Safe delivery" started.
-􀟈  Test corruptEntryDoesNotHideOtherEntries() started.
-􀟈  Test emptyVocabularyIsAllowed() started.
+􀟈  Suite "Coding disambiguation" started.
+􀟈  Suite "Durable history" started.
+􀟈  Suite "Recent recovery" started.
+􀟈  Test oldSettingsDecodeAndAllLegacyTermsArePreserved() started.
+􀟈  Test passwordsAreBlockedEvenForExplicitInsertion() started.
+􀟈  Test malformedMetadataIsVisibleAndOtherProjectsSurvive() started.
+􀟈  Test canonicalNameAndWorktreesAreDeduplicated() started.
+􀟈  Test manualOnlyModeHoldsAutomatically() started.
 􀟈  Test oversizedVocabularyIsRejectedRatherThanSilentlyCut() started.
-􀟈  Test normalisesWhitespaceAndDuplicates() started.
-􀟈  Test unmodifiedShortcutsAreRejected() started.
-􀟈  Test settingsRoundTrip() started.
-􀟈  Test failedInsertionCannotDeleteTranscript() started.
-􀟈  Test projectSpellingWins() started.
-􀟈  Test duplicateShortcutsAreRejected() started.
-􀟈  Test activeRecordingCannotBeDeleted() started.
-􀟈  Test editingDoesNotMutateOriginalRecognition() started.
-􀟈  Test specialModelTokensAreRejected() started.
-􀟈  Test exhaustedBudgetIsNotPresentedAsComplete() started.
-􀟈  Test cleanTranscriptHasNoWarning() started.
-􀟈  Test longRecordingsCoverEverySampleExactlyOnce() started.
-􀟈  Test retranscribingRetainsEarlierAttempts() started.
-􀟈  Test warningsRequireReview() started.
-􀟈  Test tokenBudgetScalesWithDuration() started.
+􀟈  Test actualRepositoryScanWhenRequested() started.
+􀟈  Test terminalIsOptIn() started.
 􀟈  Test accessibilityIsRequired() started.
-􀟈  Test emptyOutputIsFlagged() started.
-􀟈  Test unknownFieldsAreHeld() started.
+􀟈  Test projectNamesExcludeDependenciesAndInternalPackages() started.
+􀟈  Test duplicateShortcutsAreRejected() started.
+􀟈  Test ignoresDependenciesHiddenFoldersAndSymlinks() started.
+􀟈  Test unchangedEditableTargetCanReceiveText() started.
+􀟈  Test catalogSurvivesRestart() started.
+􀟈  Test cleanTranscriptHasNoWarning() started.
+􀟈  Test projectSpellingWins() started.
+􀟈  Test specialModelTokensAreRejected() started.
 􀟈  Test switchedFocusIsHeldEvenWhenSwitchedBack() started.
 􀟈  Test floatPCMIsLossless() started.
-􀟈  Test wavHeaderAndPayloadAreValid() started.
-􀟈  Test normalDictationUsesASingleBatch() started.
-􀟈  Test unchangedEditableTargetCanReceiveText() started.
-􀟈  Test aPartialFinalSampleDoesNotLoseEarlierAudio() started.
-􀟈  Test manualOnlyModeHoldsAutomatically() started.
-􀟈  Test passwordsAreBlockedEvenForExplicitInsertion() started.
-􀟈  Test terminalIsOptIn() started.
-􀟈  Test exportCannotOverwriteRecoveryOriginal() started.
-􀟈  Test recordingSurvivesAStoreRestart() started.
-􀟈  Test explicitInsertionCanChooseNewTarget() started.
-􀟈  Test warningsPreventAutomaticInsertion() started.
+􀟈  Test oldBroadCacheIsNotUsedAsNameDictionary() started.
+􀟈  Test longRecordingsCoverEverySampleExactlyOnce() started.
 􀟈  Test aDifferentTargetIsHeld() started.
-􁁛  Test emptyVocabularyIsAllowed() passed after 0.001 seconds.
-􁁛  Test normalisesWhitespaceAndDuplicates() passed after 0.001 seconds.
-􁁛  Test projectSpellingWins() passed after 0.001 seconds.
-􁁛  Test exhaustedBudgetIsNotPresentedAsComplete() passed after 0.001 seconds.
+􀟈  Test exhaustedBudgetIsNotPresentedAsComplete() started.
+􀟈  Test warningsPreventAutomaticInsertion() started.
+􀟈  Test emptyVocabularyIsAllowed() started.
+􀟈  Test settingsRoundTrip() started.
+􀟈  Test explicitInsertionCanChooseNewTarget() started.
+􀟈  Test wavHeaderAndPayloadAreValid() started.
+􀟈  Test unknownFieldsAreHeld() started.
+􀟈  Test normalDictationUsesASingleBatch() started.
+􀟈  Test detectorUsesFileTypesWithoutImportingDependencies() started.
+􀟈  Test tokenBudgetScalesWithDuration() started.
+􀟈  Test aPartialFinalSampleDoesNotLoseEarlierAudio() started.
+􀟈  Test unmodifiedShortcutsAreRejected() started.
+􀟈  Test emptyOutputIsFlagged() started.
+􀟈  Test selectedTypesAddFocusedSpellingHints() started.
+􀟈  Test exportCannotOverwriteRecoveryOriginal() started.
+􀟈  Test normalisesWhitespaceAndDuplicates() started.
+􀟈  Test oldSettingsUseSmallDefaultAndPolicyRoundTrips() started.
+􀟈  Test defaultKeepsOnlyLatestSettledEntry() started.
+􀟈  Test corruptEntryDoesNotHideOtherEntries() started.
+􀟈  Test timeLimitExpiresPendingAndDeliveredButNeverActive() started.
+􀟈  Test warningsRequireReview() started.
+􀟈  Test retranscribingRetainsEarlierAttempts() started.
+􀟈  Test longRecordingGetsRecoveryWindowAfterResultIsReady() started.
+􀟈  Test editingDoesNotMutateOriginalRecognition() started.
+􀟈  Test failedAttemptCanKeepPreviousUsableTranscript() started.
+􀟈  Test recordingSurvivesAStoreRestart() started.
+􀟈  Test pruningRemovesAudioAndMetadataTogether() started.
+􀟈  Test activeRecordingCannotBeDeleted() started.
+􀟈  Test failedInsertionCannotDeleteTranscript() started.
 􁁛  Test accessibilityIsRequired() passed after 0.001 seconds.
-􁁛  Test switchedFocusIsHeldEvenWhenSwitchedBack() passed after 0.001 seconds.
-􁁛  Test tokenBudgetScalesWithDuration() passed after 0.001 seconds.
-􁁛  Test cleanTranscriptHasNoWarning() passed after 0.001 seconds.
-􁁛  Test emptyOutputIsFlagged() passed after 0.001 seconds.
-􁁛  Test unknownFieldsAreHeld() passed after 0.001 seconds.
-􁁛  Test unchangedEditableTargetCanReceiveText() passed after 0.001 seconds.
-􁁛  Test manualOnlyModeHoldsAutomatically() passed after 0.001 seconds.
 􁁛  Test passwordsAreBlockedEvenForExplicitInsertion() passed after 0.001 seconds.
+􁁛  Test unchangedEditableTargetCanReceiveText() passed after 0.001 seconds.
 􁁛  Test terminalIsOptIn() passed after 0.001 seconds.
-􁁛  Test explicitInsertionCanChooseNewTarget() passed after 0.001 seconds.
-􁁛  Test normalDictationUsesASingleBatch() passed after 0.001 seconds.
-􁁛  Test specialModelTokensAreRejected() passed after 0.001 seconds.
-􁁛  Test unmodifiedShortcutsAreRejected() passed after 0.001 seconds.
-􁁛  Test oversizedVocabularyIsRejectedRatherThanSilentlyCut() passed after 0.001 seconds.
-􁁛  Test duplicateShortcutsAreRejected() passed after 0.001 seconds.
-􁁛  Test exportCannotOverwriteRecoveryOriginal() passed after 0.001 seconds.
-􁁛  Test aDifferentTargetIsHeld() passed after 0.001 seconds.
-􁁛  Test warningsPreventAutomaticInsertion() passed after 0.001 seconds.
-􁁛  Suite "Safe delivery" passed after 0.001 seconds.
-􁁛  Test longRecordingsCoverEverySampleExactlyOnce() passed after 0.001 seconds.
-􁁛  Test aPartialFinalSampleDoesNotLoseEarlierAudio() passed after 0.002 seconds.
-􁁛  Test floatPCMIsLossless() passed after 0.002 seconds.
-􁁛  Test settingsRoundTrip() passed after 0.002 seconds.
-􁁛  Suite "Recognition context" passed after 0.002 seconds.
-􁁛  Test activeRecordingCannotBeDeleted() passed after 0.003 seconds.
-􁁛  Test warningsRequireReview() passed after 0.003 seconds.
-􁁛  Test wavHeaderAndPayloadAreValid() passed after 0.003 seconds.
-􁁛  Suite "Audio completeness" passed after 0.004 seconds.
-􁁛  Test recordingSurvivesAStoreRestart() passed after 0.003 seconds.
-􁁛  Test failedInsertionCannotDeleteTranscript() passed after 0.004 seconds.
-􁁛  Test editingDoesNotMutateOriginalRecognition() passed after 0.004 seconds.
-􁁛  Test retranscribingRetainsEarlierAttempts() passed after 0.004 seconds.
-􁁛  Test corruptEntryDoesNotHideOtherEntries() passed after 0.006 seconds.
-􁁛  Suite "Durable history" passed after 0.006 seconds.
-􁁛  Test run with 35 tests in 4 suites passed after 0.006 seconds.
-Building for debugging...
-[Computing dependencies]
-[Pre-planning 1 / 1013]
-[Planning deferred tasks]
-[1 / 88]
-warning: missing creator for mutated node: ('/Users/sko/repos/dictation/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
-[4 / 80]
-Build complete! (1.30 sec.)
-/Users/sko/repos/dictation/build/LocalDictation.app/Contents/MacOS/DictationWorker: replacing existing signature
-/Users/sko/repos/dictation/build/LocalDictation.app: replacing existing signature
-Built /Users/sko/repos/dictation/build/LocalDictation.app
-MLX Metal self-test passed
+􁁛  Test projectSpellingWins() passed after 0.001 seconds.
+􁁛  Test switchedFocusIsHeldEvenWhenSwitchedBack() passed after 0.001 seconds.
+􁁛  Test manualOnlyModeHoldsAutomatically() passed after 0.001 seconds.
+􁁛  Test cleanTranscriptHasNoWarning() passed after 0.001 seconds.
+􁁛  Test aDifferentTargetIsHeld() passed after 0.002 seconds.
+􁁛  Test emptyVocabularyIsAllowed() passed after 0.004 seconds.
+􁁛  Test exhaustedBudgetIsNotPresentedAsComplete() passed after 0.004 seconds.
+􁁛  Test warningsPreventAutomaticInsertion() passed after 0.005 seconds.
+􁁛  Test explicitInsertionCanChooseNewTarget() passed after 0.005 seconds.
+􁁛  Test duplicateShortcutsAreRejected() passed after 0.005 seconds.
+􁁛  Test oldBroadCacheIsNotUsedAsNameDictionary() passed after 0.005 seconds.
+􁁛  Test specialModelTokensAreRejected() passed after 0.005 seconds.
+􁁛  Test normalDictationUsesASingleBatch() passed after 0.004 seconds.
+􁁛  Test unknownFieldsAreHeld() passed after 0.005 seconds.
+􁁛  Test oversizedVocabularyIsRejectedRatherThanSilentlyCut() passed after 0.005 seconds.
+􁁛  Test tokenBudgetScalesWithDuration() passed after 0.005 seconds.
+􁁛  Test emptyOutputIsFlagged() passed after 0.005 seconds.
+􁁛  Test unmodifiedShortcutsAreRejected() passed after 0.004 seconds.
+􁁛  Test selectedTypesAddFocusedSpellingHints() passed after 0.005 seconds.
+􁁛  Test exportCannotOverwriteRecoveryOriginal() passed after 0.005 seconds.
+􁁛  Test normalisesWhitespaceAndDuplicates() passed after 0.005 seconds.
+􁁛  Test defaultKeepsOnlyLatestSettledEntry() passed after 0.004 seconds.
+􁁛  Test oldSettingsDecodeAndAllLegacyTermsArePreserved() passed after 0.005 seconds.
+􁁛  Test oldSettingsUseSmallDefaultAndPolicyRoundTrips() passed after 0.004 seconds.
+􁁛  Test timeLimitExpiresPendingAndDeliveredButNeverActive() passed after 0.004 seconds.
+􁁛  Test longRecordingsCoverEverySampleExactlyOnce() passed after 0.005 seconds.
+􁁛  Test failedAttemptCanKeepPreviousUsableTranscript() passed after 0.004 seconds.
+􁁛  Test longRecordingGetsRecoveryWindowAfterResultIsReady() passed after 0.004 seconds.
+􁁛  Test floatPCMIsLossless() passed after 0.005 seconds.
+􁁛  Test settingsRoundTrip() passed after 0.005 seconds.
+􁁛  Test aPartialFinalSampleDoesNotLoseEarlierAudio() passed after 0.005 seconds.
+􁁛  Test catalogSurvivesRestart() passed after 0.005 seconds.
+􁁛  Test warningsRequireReview() passed after 0.005 seconds.
+􁁛  Suite "Safe delivery" passed after 0.005 seconds.
+􁁛  Test activeRecordingCannotBeDeleted() passed after 0.004 seconds.
+􁁛  Suite "Recognition context" passed after 0.005 seconds.
+􁁛  Test detectorUsesFileTypesWithoutImportingDependencies() passed after 0.005 seconds.
+􁁛  Suite "Coding disambiguation" passed after 0.005 seconds.
+􁁛  Test pruningRemovesAudioAndMetadataTogether() passed after 0.005 seconds.
+􁁛  Test retranscribingRetainsEarlierAttempts() passed after 0.005 seconds.
+􁁛  Suite "Recent recovery" passed after 0.006 seconds.
+􁁛  Test malformedMetadataIsVisibleAndOtherProjectsSurvive() passed after 0.006 seconds.
+􁁛  Test editingDoesNotMutateOriginalRecognition() passed after 0.005 seconds.
+􁁛  Test failedInsertionCannotDeleteTranscript() passed after 0.005 seconds.
+􁁛  Test wavHeaderAndPayloadAreValid() passed after 0.006 seconds.
+􁁛  Suite "Audio completeness" passed after 0.006 seconds.
+􁁛  Test recordingSurvivesAStoreRestart() passed after 0.006 seconds.
+􁁛  Test corruptEntryDoesNotHideOtherEntries() passed after 0.007 seconds.
+􁁛  Suite "Durable history" passed after 0.007 seconds.
+􁁛  Test canonicalNameAndWorktreesAreDeduplicated() passed after 0.008 seconds.
+􁁛  Test projectNamesExcludeDependenciesAndInternalPackages() passed after 0.008 seconds.
+􁁛  Test ignoresDependenciesHiddenFoldersAndSymlinks() passed after 0.008 seconds.
+Repository scan: 17 repositories, 17 names, 506 context bytes, 0 notes
+􁁛  Test actualRepositoryScanWhenRequested() passed after 0.287 seconds.
+􁁛  Suite "Project name dictionary" passed after 0.288 seconds.
+􁁛  Test run with 51 tests in 7 suites passed after 0.288 seconds.

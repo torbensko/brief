@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import DictationCore
 
 @main
 struct LocalDictationApp {
@@ -20,10 +21,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settingsWindow: NSWindow?
     private var overlay: RecordingPanel?
     private var terminating = false
+    private var previewRoot: URL?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            let controller = try AppController()
+            let preview = CommandLine.arguments.contains("--preview-recovery") || CommandLine.arguments.contains("--preview-card")
+            if preview { previewRoot = FileManager.default.temporaryDirectory.appendingPathComponent("LocalDictation-preview-" + UUID().uuidString) }
+            let controller = try AppController(storageRoot: previewRoot)
             self.controller = controller
             installMainMenu()
             controller.showHistory = { [weak self] in self?.showHistory() }
@@ -36,7 +40,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.delegate = self
             item.menu = menu
             statusItem = item
-            Task { await controller.bootstrap() }
+            Task {
+                if preview {
+                    var session = DictationSession(sampleRate: 16_000, profileName: "Preview", vocabulary: "Blint, JSON")
+                    session.audioDeleted = true
+                    try? await controller.store.create(session)
+                    try? await controller.store.appendAttempt(TranscriptAttempt(text: "In Blint, let the agent save the specification as a JSON document. Do not delete the existing file.", model: "UI preview — not a recognition result", vocabulary: "Blint, JSON", processingSeconds: 0, audioSeconds: 0, generationTokens: 0), to: session.id)
+                    await controller.refreshHistory()
+                    if !CommandLine.arguments.contains("--preview-card") { self.showHistory() }
+                    controller.showLatestTranscript()
+                } else { await controller.bootstrap() }
+            }
         } catch {
             let alert = NSAlert(error: error)
             alert.runModal()
@@ -65,13 +79,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         main.addItem(editItem)
         let windowItem = NSMenuItem()
         let windows = NSMenu(title: "Window")
-        let history = NSMenuItem(title: "History", action: #selector(showHistory), keyEquivalent: "h")
+        let history = NSMenuItem(title: "Recent dictation", action: #selector(showHistory), keyEquivalent: "h")
         history.keyEquivalentModifierMask = [.command, .shift]
         history.target = self
         windows.addItem(history)
         let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settings.target = self
         windows.addItem(settings)
+        windows.addItem(NSMenuItem(title: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
         windowItem.submenu = windows
         main.addItem(windowItem)
         NSApp.mainMenu = main
@@ -93,7 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(controller.phase == .recording ? "Stop recording" : "Record", #selector(record),
             enabled: !controller.isBusy || controller.phase == .recording)
         add("Insert pending", #selector(insert), enabled: !controller.isBusy && controller.pendingSession != nil)
-        add("History", #selector(showHistory))
+        add("Recent dictation", #selector(showHistory))
+        add("Show last text", #selector(showLatest), enabled: controller.latestTranscript != nil)
         add("Settings…", #selector(showSettings))
         menu.addItem(.separator())
         add("Quit LocalDictation", #selector(quit))
@@ -101,11 +117,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func record() { controller?.toggleRecording() }
     @objc private func insert() { controller?.insertPending() }
+    @objc private func showLatest() { controller?.showLatestTranscript() }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func showHistory() {
         guard let controller else { return }
         if historyWindow == nil {
-            historyWindow = window(title: "LocalDictation — History", content: HistoryView(controller: controller))
+            historyWindow = window(title: "LocalDictation — Recent", content: HistoryView(controller: controller))
         }
         activate(historyWindow)
     }
@@ -131,9 +148,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showOverlay() {
         guard let controller else { return }
         if overlay == nil {
-            let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 180),
+            let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 206),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller))
+            panel.title = "Latest dictation"
             panel.isOpaque = false
             panel.backgroundColor = .clear
             panel.level = .floating
@@ -143,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if let screen = NSScreen.main, let overlay {
             let frame = screen.visibleFrame
-            overlay.setFrameOrigin(NSPoint(x: frame.midX - overlay.frame.width / 2, y: frame.minY + 30))
+            overlay.setFrameOrigin(NSPoint(x: frame.minX + 24, y: frame.minY + 24))
             overlay.orderFrontRegardless()
         }
     }
@@ -152,6 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         terminating = true
         Task {
             await controller.shutdown()
+            if let previewRoot { try? FileManager.default.removeItem(at: previewRoot) }
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

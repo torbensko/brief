@@ -108,6 +108,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var globalTerms = ""
     public var profiles: [VocabularyProfile] = []
     // Optional fields preserve decoding of settings saved by the original app.
+    public var recoveryPolicy: RecoveryPolicy?
+    public var effectiveRecoveryPolicy: RecoveryPolicy { recoveryPolicy ?? RecoveryPolicy() }
     public var repositoriesPath: String?
     public var repositoryVocabulary: RepositoryVocabulary?
     public var selectedProfileID: UUID?
@@ -125,10 +127,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var selectedProfile: VocabularyProfile? { profiles.first { $0.id == selectedProfileID } }
     public var vocabularyContext: String {
         Vocabulary.terms((repositoryVocabulary?.names ?? []) .joined(separator: "\n") + "\n" +
-            globalTerms + "\n" + profiles.map { $0.name + "\n" + $0.terms }.joined(separator: "\n"))
+            globalTerms + "\n" + profiles.map { $0.name + "\n" + $0.terms }.joined(separator: "\n") + "\n" +
+            CodingVocabulary.terms(for: repositoryVocabulary?.projectTypes ?? []).joined(separator: "\n"))
             .joined(separator: ", ")
     }
     public func validate() throws {
+        try effectiveRecoveryPolicy.validate()
         let bindings = [recordShortcut, insertShortcut, historyShortcut]
         guard Set(bindings.map { "\($0.keyCode):\($0.modifiers)" }).count == 3 else {
             throw DictationError.message("The three shortcuts must be different.")
