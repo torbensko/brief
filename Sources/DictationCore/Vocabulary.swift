@@ -16,7 +16,7 @@ public enum Vocabulary {
     }
     public static func validate(_ context: String) throws {
         guard context.utf8.count <= 16_384 else {
-            throw DictationError.message("Vocabulary is too large. Keep the active profile below 16 KB.")
+            throw DictationError.message("Vocabulary is too large. The combined coding vocabulary must fit within 16 KB. Reduce extra terms or choose a smaller repositories folder; no terms were silently dropped.")
         }
         guard !context.contains("<|"), !context.contains("|>") else {
             throw DictationError.message("Vocabulary cannot contain model control-token delimiters.")

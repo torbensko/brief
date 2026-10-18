@@ -17,6 +17,9 @@ final class AppController: ObservableObject {
     @Published private(set) var modelLoaded = false
     @Published var selectedSessionID: UUID?
     @Published private(set) var downloadMessage = ""
+    @Published private(set) var scanningRepositories = false
+    @Published private(set) var repositoryScanMessage = ""
+    private var repositoryScanTask: Task<Void, Never>?
     var showHistory: (() -> Void)?
     var showSettings: (() -> Void)?
     var showOverlay: (() -> Void)?
@@ -70,6 +73,7 @@ final class AppController: ObservableObject {
     }
     func bootstrap() async {
         await refreshHistory(recover: true)
+        scanRepositories(path: settings.effectiveRepositoriesPath)
         do { try hotKeys.register(settings) } catch { report(error) }
         if modelAvailable { warmModel() }
         else { showSettings?() }
@@ -117,7 +121,7 @@ final class AppController: ObservableObject {
             }
             let rate = try recorder.prepare()
             var session = DictationSession(sampleRate: rate,
-                profileName: settings.selectedProfile?.name ?? "General", vocabulary: settings.vocabularyContext,
+                profileName: "All projects", vocabulary: settings.vocabularyContext,
                 targetApplication: target?.application)
             session.language = settings.language
             try Vocabulary.validate(session.vocabulary)
@@ -184,7 +188,7 @@ final class AppController: ObservableObject {
                 var saved = session
                 if useCurrentVocabulary {
                     let context = settings.vocabularyContext
-                    let profile = settings.selectedProfile?.name ?? "General"
+                    let profile = "All projects"
                     let language = settings.language
                     saved = try await store.update(session.id) {
                         $0.vocabulary = context; $0.profileName = profile; $0.language = language
@@ -330,6 +334,30 @@ final class AppController: ObservableObject {
     func reveal(_ session: DictationSession) {
         NSWorkspace.shared.activateFileViewerSelecting([store.directory(for: session.id)])
     }
+    func scanRepositories(path: String) {
+        guard !scanningRepositories else { return }
+        scanningRepositories = true
+        repositoryScanMessage = "Scanning project names and technologies…"
+        repositoryScanTask = Task {
+            defer { scanningRepositories = false }
+            do {
+                let result = try await Task.detached(priority: .utility) {
+                    try RepositoryScanner.scan(path: path)
+                }.value
+                // Merge into the latest saved settings, without changing an in-flight recording's snapshot.
+                var updated = settings
+                updated.repositoriesPath = path
+                updated.repositoryVocabulary = result
+                try updated.validate()
+                try SettingsFile.save(updated, to: settingsURL)
+                settings = updated
+                repositoryScanMessage = "\(result.projects.count) repositories · \(result.names.count) names · \(result.technologies.count) technology terms"
+            } catch {
+                repositoryScanMessage = "Scan failed: \(error.localizedDescription) Previous vocabulary is still available."
+            }
+        }
+    }
+
     func warmModel() {
         guard !isBusy else { return }
         phase = .loading; message = "Loading the local model…"

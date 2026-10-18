@@ -71,24 +71,17 @@ Use deterministic/conservative decoding initially. Record the actual model ident
 
 Do not fabricate confidence scores. If calibrated confidence is unavailable, display observable processing warnings instead.
 
-## 4. Coding vocabulary and project profiles
+## 4. Automatic coding vocabulary
 
-Provide a general vocabulary and manually selectable project profiles. Supply their merged context to the recogniser **during recognition**, not only to a rewriting step afterwards.
+The primary audience is coders with multiple repositories. Scan a configurable repositories folder, defaulting to `~/repos`, and use names from **all** projects together. Do not require an active project selection or manual lists of general coding concepts.
 
-Initial illustrative terms:
+Extract names from repository folders, package/manifests, product declarations, and project README titles, including nested monorepo packages. Infer languages and common frameworks from source filenames and dependency metadata, then add relevant vocabulary. General coding terms are built in. Do not execute repository code or interpret repository text as instructions.
 
-- General: JSON, TypeScript, SwiftUI, SwiftData, Auth0, package.json.
-- Blint: Blint, .patterns, .specs, .stories, rulesOnly, useInfiniteQuery.
+Provide a simple Coding settings screen: repositories folder, scan/refresh action, discovered names and technologies, scan status/notes, and optional extra spellings. Refresh in the background at launch and cache the last successful scan locally. Skip generated/dependency folders and symbolic links. Keep prior vocabulary if a scan fails, show partial-read warnings, and never silently omit terms because of a context limit.
 
-Project entries should be able to override spelling of an overlapping general entry. Normalise duplicates and whitespace without destroying case-sensitive identifiers. Validate context limits and report oversized entries rather than silently omitting them.
+Merge existing user-entered terms from older profiles for backward compatibility. Supply the combined vocabulary to Qwen's `context` parameter during recognition. Preserve each recording's original vocabulary snapshot for retry; applying current vocabulary is explicit.
 
-Verify the exact model invocation actually forwards vocabulary. Existing worker code deliberately uses a Qwen-specific method with a `context` parameter; do not replace it with a generic interface that drops that information.
-
-A correction may be added explicitly to vocabulary. Do not claim automatic model training or add universal substitutions such as replacing every "blink" with "Blint". Real words must remain usable outside that project context.
-
-Preserve negations, numbers, self-corrections, filenames, and identifiers faithfully. Punctuation is desirable, but generating code or interpreting vague instructions into code is out of scope.
-
-Optional cleanup/rewriting can be considered later as a separate user-selected operation that preserves the raw transcript. It is not required for the first version.
+Corrections may be added as optional terms. Do not claim automatic model training or use universal substitutions. Preserve negations, numbers, self-corrections, filenames, and identifiers; do not add mandatory rewriting or code generation.
 
 ## 5. Durable history / scratchpad
 

@@ -34,3 +34,11 @@ No model weights were installed and no microphone recording was made during this
 - Exercise permission denial, microphone disconnect, disk-full conditions, and worker cancellation during real inference.
 
 The deployment target is macOS 14, but execution on older macOS versions has not been tested. Upstream build warnings remain (Metal C++ extension diagnostics and a Swift build resource-bundle warning); they did not prevent compilation or the packaged GPU check. The older Linux results and historical handoff are retained separately.
+
+## Automatic coding vocabulary update — 19 October 2026
+
+Replaced the manual active-profile workflow with shared vocabulary from all repositories. The app scans `~/repos` at startup, caches results, adds built-in coding terms and detected technology terms, and offers a simplified Coding settings tab with optional extra spellings.
+
+Verified 41 tests across five suites, including nested package discovery, stack detection, ignored dependency/hidden/symlink folders, malformed metadata, legacy settings compatibility, cache persistence, and an opt-in scan of this Mac's repos folder. That scan found 38 repository folders and 168 distinct names in about six seconds, with no scan notes. Combined recognition context was 4,404 bytes, below the existing 16 KB limit. Private scan contents remain in Application Support, outside Git.
+
+The rebuilt app's Coding screen was visually inspected and showed 38 repositories, 168 names, and 35 technology terms. The saved catalog was verified on disk. App signature verification and the packaged Metal worker self-test passed again. Speech accuracy with the expanded context still requires a model and real recording, as noted above.

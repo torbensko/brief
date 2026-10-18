@@ -161,7 +161,7 @@ private struct TranscriptDetail: View {
                 Spacer()
                 Menu("Retranscribe") {
                     Button("With the recording’s original vocabulary") { controller.retry(session, useCurrentVocabulary: false) }
-                    Button("With the currently selected vocabulary") { controller.retry(session, useCurrentVocabulary: true) }
+                    Button("With the current coding vocabulary") { controller.retry(session, useCurrentVocabulary: true) }
                 }.disabled(session.audioDeleted || session.frameCount == 0 || controller.isBusy || dirty)
             }.controlSize(.small)
             Divider()
@@ -171,9 +171,7 @@ private struct TranscriptDetail: View {
                     do {
                         var settings = controller.settings
                         let word = term.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if let index = settings.profiles.firstIndex(where: { $0.id == settings.selectedProfileID }) {
-                            settings.profiles[index].terms += "\n" + word
-                        } else { settings.globalTerms += "\n" + word }
+                        settings.globalTerms += "\n" + word
                         try controller.apply(settings); term = ""; editError = nil
                     } catch { editError = error.localizedDescription }
                 }.disabled(term.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || controller.isBusy)

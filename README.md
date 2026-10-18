@@ -1,6 +1,6 @@
 # LocalDictation
 
-Native macOS menu-bar dictation with local Qwen3-ASR recognition, project vocabulary, recoverable recordings, and conservative text insertion.
+Native macOS menu-bar dictation with local Qwen3-ASR recognition, automatic coding vocabulary, recoverable recordings, and conservative text insertion.
 
 ## Build and open
 
@@ -24,6 +24,14 @@ The waveform icon in the menu bar opens Record, Insert Pending, History, Setting
 4. Review the result in History. If the destination changed or recognition raised a warning, the transcript remains saved for review or manual insertion.
 
 Audio, transcripts, settings, and downloaded weights live in `~/Library/Application Support/LocalDictation`, outside this project. Model downloading is explicit; recognition uses local files. Audio is retained until explicitly deleted.
+
+## Automatic coding vocabulary
+
+Settings → Coding scans `~/repos` automatically at launch. Choose another repositories folder or use **Scan repositories** to refresh it. All discovered names are included together in every new recording; no profile switching is required.
+
+The scanner collects folder names, manifest names (including nested packages), product names, and project README titles. It recognizes source languages and common dependency stacks, adding appropriate coding terms. General coding vocabulary is built in. Optional extra spellings and terms from older saved profiles are preserved.
+
+Scans run locally in the background, skip dependencies/build output/hidden folders/symlinks, and never execute project files. Results are cached in Application Support. Failed scans retain the previous vocabulary; warnings are visible, and oversized combined context is rejected rather than silently truncated. Existing recordings retain their original vocabulary snapshot unless explicitly retranscribed with current vocabulary.
 
 ## Checks
 

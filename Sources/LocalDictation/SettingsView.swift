@@ -8,18 +8,18 @@ struct SettingsView: View {
     @State private var draft: AppSettings
     @State private var saveMessage = ""
     @State private var permissionsVersion = 0
-    @State private var editingProfile: UUID?
+    @State private var repositoryPath = ""
     init(controller: AppController) {
         self.controller = controller
         _draft = State(initialValue: controller.settings)
-        _editingProfile = State(initialValue: controller.settings.selectedProfileID)
+        _repositoryPath = State(initialValue: controller.settings.effectiveRepositoriesPath)
     }
     var body: some View {
         VStack(spacing: 0) {
             TabView {
                 general.tabItem { Label("General", systemImage: "slider.horizontal.3") }
                 model.tabItem { Label("Model", systemImage: "cpu") }
-                vocabulary.tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
+                vocabulary.tabItem { Label("Coding", systemImage: "chevron.left.forwardslash.chevron.right") }
                 shortcuts.tabItem { Label("Shortcuts", systemImage: "keyboard") }
             }.padding(12)
             Divider()
@@ -37,7 +37,12 @@ struct SettingsView: View {
                 Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled).padding([.horizontal, .bottom], 16)
             }
         }.frame(width: 670, height: 650)
-        .onChange(of: controller.settings) { _, updated in draft = updated }
+        .onChange(of: controller.settings) { previous, updated in
+            // A background scan must not erase unsaved edits in other settings tabs.
+            draft.repositoryVocabulary = updated.repositoryVocabulary
+            draft.repositoriesPath = updated.repositoriesPath
+            if updated.modelDirectory != previous.modelDirectory { draft.modelDirectory = updated.modelDirectory }
+        }
     }
     private var general: some View {
         Form {
@@ -118,49 +123,69 @@ struct SettingsView: View {
         }.formStyle(.grouped)
     }
     private var vocabulary: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Recognition vocabulary").font(.title3.bold())
-            Text("One term or exact spelling per line. These terms are sent to the local recogniser as context, not used as search-and-replace rules.")
-                .font(.callout).foregroundStyle(.secondary)
-            HStack {
-                Picker("Active profile", selection: $draft.selectedProfileID) {
-                    Text("General only").tag(nil as UUID?)
-                    ForEach(draft.profiles) { profile in Text(profile.name).tag(Optional(profile.id)) }
-                }
-                Button("Add profile") {
-                    let profile = VocabularyProfile(name: "New project", terms: "")
-                    draft.profiles.append(profile); editingProfile = profile.id; draft.selectedProfileID = profile.id
-                }
+        Form {
+            Section("Coding vocabulary, ready to use") {
+                Text("Coding terms are built in. Names and technologies from all your repositories are used together for every recording.")
+                Text("No active project to choose. Scans stay on your Mac and refresh when the app opens.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            HSplitView {
-                VStack(alignment: .leading) {
-                    Text("General coding terms").font(.headline)
-                    TextEditor(text: $draft.globalTerms).font(.body.monospaced())
-                        .border(.quaternary).frame(minHeight: 190)
-                }.frame(minWidth: 230)
-                VStack(alignment: .leading) {
-                    Picker("Edit profile", selection: $editingProfile) {
-                        Text("Choose a profile").tag(nil as UUID?)
-                        ForEach(draft.profiles) { Text($0.name).tag(Optional($0.id)) }
-                    }
-                    if let index = draft.profiles.firstIndex(where: { $0.id == editingProfile }) {
-                        TextField("Project name", text: $draft.profiles[index].name).textFieldStyle(.roundedBorder)
-                        TextEditor(text: $draft.profiles[index].terms).font(.body.monospaced()).border(.quaternary)
-                        Button("Remove this profile") {
-                            let id = draft.profiles[index].id
-                            draft.profiles.remove(at: index)
-                            if draft.selectedProfileID == id { draft.selectedProfileID = nil }
-                            editingProfile = nil
+            Section("Your repositories") {
+                HStack {
+                    TextField("Repositories folder", text: $repositoryPath).textFieldStyle(.roundedBorder)
+                    Button("Choose…") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseDirectories = true; panel.canChooseFiles = false
+                        panel.allowsMultipleSelection = false
+                        if panel.runModal() == .OK, let url = panel.url {
+                            repositoryPath = url.path
+                            controller.scanRepositories(path: repositoryPath)
                         }
-                    } else { Text("Select or add a profile.").foregroundStyle(.secondary); Spacer() }
-                }.frame(minWidth: 260).padding(.leading, 12)
+                    }.disabled(controller.scanningRepositories)
+                }
+                HStack {
+                    Button("Scan repositories") { controller.scanRepositories(path: repositoryPath) }
+                        .disabled(controller.scanningRepositories || repositoryPath.trimmingCharacters(in: .whitespaces).isEmpty)
+                    if controller.scanningRepositories { ProgressView().controlSize(.small) }
+                    Text(controller.repositoryScanMessage).font(.caption).foregroundStyle(.secondary)
+                }
+                Text("The folder and scan results are saved automatically. Reads project metadata and source filenames; skips dependencies, build output, hidden folders, and symbolic links.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            Text("Context preview").font(.caption.bold())
-            ScrollView { Text(draft.vocabularyContext.isEmpty ? "No custom vocabulary" : draft.vocabularyContext)
-                .font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
-                .frame(height: 70)
-            Spacer(minLength: 0)
-        }.padding(16)
+            if let catalog = controller.settings.repositoryVocabulary {
+                Section("Discovered across all projects") {
+                    Text("\(catalog.projects.count) repositories · \(catalog.names.count) names")
+                        .font(.headline)
+                    Text("Last scanned \(catalog.scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption).foregroundStyle(.secondary)
+                    DisclosureGroup("Project names") {
+                        ForEach(catalog.projects) { project in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(URL(fileURLWithPath: project.path).lastPathComponent).font(.headline)
+                                Text(project.names.joined(separator: ", ")).font(.caption).textSelection(.enabled)
+                                Text(project.technologies.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
+                            }.padding(.vertical, 3)
+                        }
+                    }
+                    DisclosureGroup("Languages and technology terms") {
+                        Text(catalog.technologies.joined(separator: ", ")).font(.caption).textSelection(.enabled)
+                    }
+                    if !catalog.warnings.isEmpty {
+                        DisclosureGroup("Scan notes (\(catalog.warnings.count))") {
+                            Text(catalog.warnings.joined(separator: "\n")).font(.caption).textSelection(.enabled)
+                        }
+                    }
+                }
+            }
+            Section("Optional extra spellings") {
+                Text("Only add names or spellings the scan missed. Coding concepts are already included.")
+                    .font(.caption).foregroundStyle(.secondary)
+                TextEditor(text: $draft.globalTerms).font(.body.monospaced()).frame(minHeight: 65)
+                if !draft.profiles.isEmpty {
+                    Text("Your earlier profile terms are also included across all recordings.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }.formStyle(.grouped)
     }
     private var shortcuts: some View {
         Form {

@@ -105,8 +105,11 @@ public struct HotKeyBinding: Codable, Equatable, Sendable {
 
 public struct AppSettings: Codable, Equatable, Sendable {
     public var schema: Int = 1
-    public var globalTerms = "JSON\nTypeScript\nSwiftUI\nSwiftData\nAuth0\npackage.json\nuseInfiniteQuery"
-    public var profiles = [VocabularyProfile(name: "Blint", terms: "Blint\n.patterns\n.specs\n.stories\nrulesOnly")]
+    public var globalTerms = ""
+    public var profiles: [VocabularyProfile] = []
+    // Optional fields preserve decoding of settings saved by the original app.
+    public var repositoriesPath: String?
+    public var repositoryVocabulary: RepositoryVocabulary?
     public var selectedProfileID: UUID?
     public var modelDirectory: String = ""
     public var automaticInsertion = true
@@ -117,10 +120,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var historyShortcut = HotKeyBinding.history
     public var tokenBudgetMultiplier: Int = 1
     public var language = "English"
-    public init() { selectedProfileID = profiles.first?.id }
+    public init() {}
+    public var effectiveRepositoriesPath: String { repositoriesPath ?? "~/repos" }
     public var selectedProfile: VocabularyProfile? { profiles.first { $0.id == selectedProfileID } }
     public var vocabularyContext: String {
-        Vocabulary.context(global: globalTerms, project: selectedProfile?.terms ?? "")
+        Vocabulary.terms((repositoryVocabulary?.names ?? []) .joined(separator: "\n") + "\n" +
+            globalTerms + "\n" + profiles.map { $0.name + "\n" + $0.terms }.joined(separator: "\n") + "\n" +
+            RepositoryScanner.codingTerms + "\n" + (repositoryVocabulary?.technologies ?? []).joined(separator: "\n"))
+            .joined(separator: ", ")
     }
     public func validate() throws {
         let bindings = [recordShortcut, insertShortcut, historyShortcut]
