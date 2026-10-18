@@ -91,3 +91,9 @@ Added a persistent Accessibility-blocked notice and Enable insertion action to t
 The previous ad-hoc signing changed the app identity across rebuilds, causing microphone permission to become unavailable after the rebuild as well. The build now uses a unique installed Apple Development identity when available, with explicit SIGNING_IDENTITY override and an announced ad-hoc fallback. This Mac's signed build passed verification and has a certificate-based designated requirement rather than a binary hash. Permission grants for this new identity still require user authorization.
 
 The 10 safe-delivery tests pass, including the missing-Accessibility gate. App build and signature verification pass. End-to-end GPT-field insertion remains pending the Accessibility grant; do not present compilation or the permission diagnosis as a successful live paste.
+
+## Accessibility grant repaired — 19 October 2026
+
+With explicit user authorization, refreshed the macOS permission. The system toggle was on while the app still reported no access. Toggling alone did not resolve the mismatch. Removed the stale LocalDictation entry and re-added the current signed build from build/LocalDictation.app. The running app then visibly reported both Accessibility enabled and Microphone enabled, and the blocked-insertion notice disappeared.
+
+An attempted unsent insertion check in the GPT composer was blocked because Computer Use disallows controlling com.openai.codex. No message was sent and no automated GPT-field insertion result is claimed. The user can now retry with permissions actually recognized by the app.
