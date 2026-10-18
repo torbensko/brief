@@ -38,6 +38,8 @@ final class AppController: ObservableObject {
     private var recoveryTimer: Timer?
     private var ticker: Timer?
     var latestTranscript: DictationSession? { sessions.first { $0.canInsert } }
+    private var recordingGesture = RecordingGesture()
+    private var releasedDuringPreparation = false
     private var tickCount = 0
     private var target: FocusTarget?
     private var focusChanged = false
@@ -64,11 +66,11 @@ final class AppController: ObservableObject {
         settings = try SettingsFile.load(from: settingsURL)
         store = try HistoryStore(root: root.appendingPathComponent("Sessions", isDirectory: true))
         worker.onExit = { [weak self] in self?.modelLoaded = false }
-        hotKeys.onAction = { [weak self] id in
+        hotKeys.onAction = { [weak self] id, down in
             switch id {
-            case 1: self?.toggleRecording()
-            case 2: self?.insertPending()
-            case 3: self?.showHistory?()
+            case 1: self?.recordShortcut(down: down)
+            case 2: if !down { self?.insertPending() }
+            case 3: if !down { self?.showHistory?() }
             default: break
             }
         }
@@ -121,10 +123,24 @@ final class AppController: ObservableObject {
         errorMessage = nil
         Task { await refreshHistory() }
     }
+    private func recordShortcut(down: Bool) {
+        let action = recordingGesture.handle(down: down, mode: settings.effectiveRecordingMode,
+            idle: phase == .idle, preparing: phase == .preparing, recording: phase == .recording)
+        switch action {
+        case .start, .stop, .toggle: toggleRecording()
+        case .cancelPreparation: releasedDuringPreparation = true
+        case .none: break
+        }
+    }
+    var recordingFinishHint: String {
+        recordingGesture.ownsRecording ? "Release \(settings.recordShortcut.display) to finish" :
+            (settings.effectiveRecordingMode == .toggle ? "\(settings.recordShortcut.display) to finish" : "Use Stop to finish")
+    }
     func toggleRecording() {
         overlayDismissTask?.cancel()
         switch phase {
         case .idle:
+            releasedDuringPreparation = false
             phase = .preparing
             target = insertion.capture()
             focusChanged = target == nil
@@ -142,6 +158,9 @@ final class AppController: ObservableObject {
             guard await AudioRecorder.requestPermission() else {
                 throw DictationError.message("Microphone permission is required. Enable LocalDictation under System Settings → Privacy & Security → Microphone.")
             }
+            guard !releasedDuringPreparation else {
+                phase = .idle; message = "Ready · hold the shortcut while speaking"; return
+            }
             let rate = try recorder.prepare()
             var session = DictationSession(sampleRate: rate,
                 profileName: "All projects", vocabulary: settings.vocabularyContext,
@@ -149,6 +168,11 @@ final class AppController: ObservableObject {
             session.language = settings.language
             try Vocabulary.validate(session.vocabulary)
             try await store.create(session) // Persist recovery metadata before touching the microphone.
+            if releasedDuringPreparation {
+                try await store.update(session.id) { $0.state = .failed; $0.note = "Shortcut released before the microphone was ready." }
+                phase = .idle; message = "Ready · hold the shortcut while speaking"
+                await refreshHistory(); return
+            }
             activeSessionID = session.id
             try recorder.start(at: store.audioURL(for: session.id))
             phase = .recording; elapsed = 0

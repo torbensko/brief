@@ -190,16 +190,20 @@ struct SettingsView: View {
     private var shortcuts: some View {
         Form {
             Section("Global shortcuts") {
-                shortcutRow("Start / stop recording", binding: $draft.recordShortcut)
+                Picker("Recording gesture", selection: Binding(get: { draft.effectiveRecordingMode }, set: { draft.recordingMode = $0 })) {
+                    Text("Hold to dictate").tag(RecordingMode.hold)
+                    Text("Press to start / press to stop").tag(RecordingMode.toggle)
+                }
+                shortcutRow("Dictate", binding: $draft.recordShortcut)
                 shortcutRow("Insert pending transcript", binding: $draft.insertShortcut)
                 shortcutRow("Open history", binding: $draft.historyShortcut)
                 Text("Click a shortcut, then press the new combination. Include Control, Option or Command. Press Escape to cancel. Shortcuts take effect after Save settings.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Behaviour") {
-                Text("Recording toggles on and off. Pauses never stop it. A waveform is shown while you speak; only the completed recording is transcribed.")
+                Text("Hold mode records while the shortcut is held; release to finish. Toggle mode starts and stops with separate presses. Pauses never stop recording. A waveform is shown while you speak; only the completed recording is transcribed.")
                 Text("When focus changes, the transcription is saved rather than pasted into an unexpected destination. Select your intended field and use Insert pending transcript.")
-                Text("Shortcuts trigger on key release to avoid repeated toggles while a key is held.")
+                Text("Hold mode starts on key press. Toggle and other shortcuts act on release; holding a key never repeats the action.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }.formStyle(.grouped)

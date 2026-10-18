@@ -156,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showOverlay() {
         guard let controller else { return }
         if overlay == nil {
-            let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 206),
+            let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 228),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller))
             panel.title = "Latest dictation"
@@ -165,11 +165,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.level = .floating
             panel.hidesOnDeactivate = false
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            if !panel.setFrameUsingName("DictationFloatingPanel"), let screen = NSScreen.main {
+                let frame = screen.visibleFrame
+                panel.setFrameOrigin(NSPoint(x: frame.midX - panel.frame.width / 2, y: frame.maxY - panel.frame.height - 24))
+            }
             overlay = panel
         }
         if let screen = NSScreen.main, let overlay {
-            let frame = screen.visibleFrame
-            overlay.setFrameOrigin(NSPoint(x: frame.minX + 24, y: frame.minY + 24))
+            // Recover a saved position if its display was disconnected.
+            if !NSScreen.screens.contains(where: { $0.visibleFrame.contains(overlay.frame) }) {
+                let frame = screen.visibleFrame
+                overlay.setFrameOrigin(NSPoint(x: frame.midX - overlay.frame.width / 2, y: frame.maxY - overlay.frame.height - 24))
+            }
             overlay.orderFrontRegardless()
         }
     }

@@ -44,16 +44,18 @@ No mandatory live transcript, partial-text insertion, rolling transcript correct
 
 ## 2. Primary interaction
 
-1. A configurable global shortcut starts recording from any normal application.
+1. A configurable global shortcut starts recording from any normal application. Default to hold-to-dictate: key press starts capture and release ends it. Also offer a toggle mode (press once to start, again to stop) in Settings → Shortcuts.
 2. Capture the intended destination before displaying app UI, if a destination can be identified.
 3. Create a durable history entry and begin saving microphone audio immediately.
 4. Display a small non-activating waveform/level overlay with duration and recording status. It must not take focus from the target application. The waveform indicates microphone activity, not live interpretation.
-5. Pauses do not stop recording. The same shortcut explicitly stops it.
+5. Pauses do not stop recording. Release ends hold-mode recording; a second press ends toggle-mode recording. Repeated key-down events must not toggle repeatedly. A release during microphone preparation must prevent delayed recording after the key is no longer held. Menu Record/Stop remains available in either mode.
 6. Finalise the saved recording and transcribe it locally. Show processing status, not provisional transcript text.
 7. Save the completed recognition result before attempting insertion.
 8. Insert only when the captured destination is still suitable and the delivery policy permits it. Otherwise keep the result pending.
 9. A separate configurable shortcut inserts the latest pending result into a field the user deliberately selected.
-10. Show the completed text in a small, non-activating corner card with a quick copy action, even after successful insertion. Recent dictation remains recoverable regardless of delivery outcome, within the selected retention limit.
+10. Show the completed text in a small, non-activating floating card with a quick copy action, even after successful insertion. Recent dictation remains recoverable regardless of delivery outcome, within the selected retention limit.
+
+The floating panel defaults to the top centre of the screen. A visible drag handle lets the user reposition it without taking focus from the destination. Remember its position across recordings and app launches; recover to a visible screen if the saved display is disconnected.
 
 The menu-bar menu should expose Record/Stop, Insert Pending, History, Settings, model status, and Quit. A model load or inference job must not block the main thread.
 

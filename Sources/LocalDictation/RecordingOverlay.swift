@@ -23,13 +23,14 @@ struct RecordingOverlay: View {
                     Button { controller.hideOverlay?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
                 }
             }
+            PanelDragHandle().frame(height: 10).help("Drag to move this panel")
             if controller.phase == .recording {
                 HStack(alignment: .center, spacing: 4) {
                     ForEach(Array(controller.levels.enumerated()), id: \.offset) { _, level in
                         Capsule().fill(.tint).frame(width: 10, height: max(3, CGFloat(level) * 28))
                     }
                 }.frame(height: 30).frame(maxWidth: .infinity)
-                Text("\(controller.settings.recordShortcut.display) to finish · microphone active")
+                Text("\(controller.recordingFinishHint) · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
                 Text(latest.text).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
@@ -42,7 +43,7 @@ struct RecordingOverlay: View {
             } else {
                 Text(controller.message).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.padding(18).frame(width: 446, height: 170, alignment: .topLeading)
+        }.padding(18).frame(width: 446, height: 192, alignment: .topLeading)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }
@@ -54,4 +55,21 @@ final class RecordingPanel: NSPanel {
 }
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
+// A dedicated grip keeps dragging separate from transcript buttons and never takes focus.
+private struct PanelDragHandle: NSViewRepresentable {
+    func makeNSView(context: Context) -> PanelGrip { PanelGrip() }
+    func updateNSView(_ nsView: PanelGrip, context: Context) {}
+}
+private final class PanelGrip: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.secondaryLabelColor.withAlphaComponent(0.5).setFill()
+        NSBezierPath(roundedRect: NSRect(x: bounds.midX - 24, y: bounds.midY - 2, width: 48, height: 4), xRadius: 2, yRadius: 2).fill()
+    }
+    override func mouseDown(with event: NSEvent) {
+        window?.performDrag(with: event)
+        if let window { window.saveFrame(usingName: "DictationFloatingPanel") }
+    }
 }

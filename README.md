@@ -33,8 +33,8 @@ The waveform icon in the menu bar opens Record, Insert Pending, Recent dictation
 
 1. In Settings → Model, explicitly download the Qwen3-ASR BF16 model, or choose an existing local model folder and save settings. Weights are several gigabytes and are not included in the project.
 2. Grant Microphone access in Settings → General. Accessibility is needed only for insertion into other apps; recording and manual copy remain available without it.
-3. Review the shortcuts in Settings → Shortcuts. Start and stop a recording using the same shortcut.
-4. Review the result in Recent. If the destination changed or recognition raised a warning, the transcript remains saved for review or manual insertion.
+3. Review the shortcuts in Settings → Shortcuts. By default, hold ⌃⌥Space while speaking and release to finish. You can change the shortcut or choose press-to-start / press-to-stop mode.
+4. The completed text inserts automatically into the field where dictation started, if it is still active and unchanged and Accessibility access is granted. The app never presses Return. Review the result in Recent. If the destination changed or recognition raised a warning, the transcript remains saved for review or manual insertion.
 
 Audio, transcripts, settings, and downloaded weights live in `~/Library/Application Support/LocalDictation`, outside this project. Model downloading is explicit; recognition uses local files. The default keeps the latest recovery entry. Set a count or minute limit at the top of Recent; older audio and text are automatically deleted.
 
@@ -48,7 +48,7 @@ Scans stay local and results are cached in Application Support. Older broad scan
 
 ## Recover the last dictation
 
-While recording, a corner waveform shows microphone activity and duration. Recognition runs on the completed recording. Afterwards, the corner card displays the last text with **Copy last text** and **Recent**, even if insertion succeeded or missed its destination. Dismiss it with × and reopen it from the menu bar's **Show last text** action.
+The floating panel starts at the top centre. Drag its small horizontal handle to move it; the position is remembered across recordings and launches. While recording, its waveform shows microphone activity and duration. Recognition runs on the completed recording. Afterwards, the card displays the last text with **Copy last text** and **Recent**, even if insertion succeeded or missed its destination. Dismiss it with × and reopen it from the menu bar's **Show last text** action.
 
 Recent is a recovery buffer, not a permanent archive. It defaults to the latest entry, with **Keep last entries** or **Keep for minutes** controls at the top. Switching to minutes starts at five minutes. Both audio and transcript expire. Active work is protected, and count mode retains the previous usable transcript if a new attempt fails. Time mode removes expired results even if pending. Export anything you want to keep longer.
 

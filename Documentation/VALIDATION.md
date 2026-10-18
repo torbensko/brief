@@ -73,3 +73,11 @@ Following explicit user authorization, downloaded the approximately 4.08 GB Qwen
 The packaged worker completed 42 synthetic transcriptions with networking denied by the macOS process sandbox. With complete app context, all 14 samples matched their reference words after case/punctuation normalization; no key terms were missing. Without context, three samples missed project names. Both approximately 100-second specifications retained their final sentence, and all 42 responses had no warnings. See [RECOGNITION-EVALUATION.md](RECOGNITION-EVALUATION.md) for the comparison, method, limitations, and repeatable command.
 
 Added a synthetic evaluation script and a headless option to read the app's exact saved recognition context. Rebuilt/signed the app and checked Python syntax. No recognition-engine changes were needed. The existing 51-test core result remains applicable. Real user speech, macOS comparison, permissions, physical microphone/shortcut checks, and focus/insertion in Blint remain open.
+
+## Hold-to-dictate and movable panel — 19 October 2026
+
+Added hold-to-dictate as the default, with toggle mode selectable in Shortcuts. Global hotkeys now handle press and release, suppress repeat presses, and track ownership so releases from ignored/busy presses cannot affect another recording. Releasing during permission/storage preparation cancels the pending start. Menu Record/Stop remains available.
+
+The panel defaults to top centre, has a visible drag handle, remembers its frame across launches, and returns to a visible screen when its saved display is unavailable. The drag handle leaves action buttons independently clickable and the panel remains non-activating.
+
+Verification: 57 tests pass across eight suites, including hold/release, preparation cancellation, ignored busy presses, menu-stop-before-release, toggle repeat suppression, and legacy settings/default persistence. App packaging/signing and the Metal self-test pass. Inspected the updated card and Shortcuts UI in isolated preview; dragged the handle and confirmed a saved window frame. Physical held-key capture and end-to-end insertion still require a live session. The insertion path remains automatic by default, gated on Accessibility access and the original field remaining suitable/unchanged; it does not submit the text.

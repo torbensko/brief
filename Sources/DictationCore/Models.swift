@@ -103,11 +103,15 @@ public struct HotKeyBinding: Codable, Equatable, Sendable {
     public static let history = Self(keyCode: 4, modifiers: 6144, display: "⌃⌥H")
 }
 
+public enum RecordingMode: String, Codable, Sendable { case hold, toggle }
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var schema: Int = 1
     public var globalTerms = ""
     public var profiles: [VocabularyProfile] = []
     // Optional fields preserve decoding of settings saved by the original app.
+    public var recordingMode: RecordingMode?
+    public var effectiveRecordingMode: RecordingMode { recordingMode ?? .hold }
     public var recoveryPolicy: RecoveryPolicy?
     public var effectiveRecoveryPolicy: RecoveryPolicy { recoveryPolicy ?? RecoveryPolicy() }
     public var repositoriesPath: String?
