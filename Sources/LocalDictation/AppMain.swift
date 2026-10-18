@@ -5,6 +5,14 @@ import DictationCore
 @main
 struct LocalDictationApp {
     @MainActor static func main() {
+        if CommandLine.arguments.contains("--recognition-context") {
+            do {
+                let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+                let settings = try SettingsFile.load(from: root.appendingPathComponent("LocalDictation/settings.json"))
+                print(settings.vocabularyContext)
+            } catch { fputs("Could not read recognition context: \(error.localizedDescription)\n", stderr); exit(1) }
+            return
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

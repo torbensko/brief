@@ -2,7 +2,7 @@
 
 ## Current state
 
-The project builds a signed, launchable Apple Silicon menu-bar app. First-use model installation and OS permissions are still required. Full speech recognition and delivery acceptance are not yet verified.
+The project builds a signed, launchable Apple Silicon menu-bar app. The model is now installed and native loading plus offline synthetic recognition are verified. OS permissions, real microphone speech, and end-to-end delivery acceptance remain open. The entries below preserve earlier checks chronologically; see the latest recognition evaluation at the end.
 
 Verified on this Mac with Apple Swift 6.4 and Xcode's macOS 27.0 SDK:
 
@@ -65,3 +65,11 @@ Verification:
 - UI preview can be repeated with `open build/LocalDictation.app --args --preview-recovery` after quitting the normal app. `--preview-card` opens just the recovery card. Do not grant permissions or record in the preview; it is for layout checks.
 
 Still outstanding: model installation and real inference, microphone waveform/capture on physical hardware, comparison with macOS dictation, and focus/insertion tests in Blint. Model download approval was requested for an inference test; no model weights were downloaded during these checks. Passing these tests does not establish speech accuracy.
+
+## Installed model and offline recognition — 19 October 2026
+
+Following explicit user authorization, downloaded the approximately 4.08 GB Qwen3-ASR-1.7B BF16 weights through the native installer and verified successful model loading. This supersedes the missing-model/inference status in earlier entries.
+
+The packaged worker completed 42 synthetic transcriptions with networking denied by the macOS process sandbox. With complete app context, all 14 samples matched their reference words after case/punctuation normalization; no key terms were missing. Without context, three samples missed project names. Both approximately 100-second specifications retained their final sentence, and all 42 responses had no warnings. See [RECOGNITION-EVALUATION.md](RECOGNITION-EVALUATION.md) for the comparison, method, limitations, and repeatable command.
+
+Added a synthetic evaluation script and a headless option to read the app's exact saved recognition context. Rebuilt/signed the app and checked Python syntax. No recognition-engine changes were needed. The existing 51-test core result remains applicable. Real user speech, macOS comparison, permissions, physical microphone/shortcut checks, and focus/insertion in Blint remain open.

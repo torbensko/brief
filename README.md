@@ -13,7 +13,7 @@ Local, coding-centric macOS dictation for speaking high-level specifications and
 
 The authoritative requirements are in [SPEC.md](SPEC.md), especially its purpose, priorities, vocabulary scope, and quality acceptance criteria. Both project names **and** targeted coding disambiguation are required. Do not simplify this into names only or expand it into a codebase index. Explain how proposed features improve this workflow before implementing them.
 
-**Current verification gap:** project-name hints, curated coding disambiguation, broad project-type detection, and a short recovery buffer are implemented. Better-than-macOS recognition quality and end-to-end delivery in Blint still require real speech evaluation.
+**Current verification gap:** project-name hints, curated coding disambiguation, broad project-type detection, and a short recovery buffer are implemented. The Qwen model has been downloaded and verified on this Mac; 42 offline synthetic recognition checks completed, with project-name hints correcting “Blend” to “Blint.” Better-than-macOS recognition quality and end-to-end delivery in Blint still require real speech evaluation. See the [recognition evaluation](Documentation/RECOGNITION-EVALUATION.md) for results and a repeatable check.
 
 ## Build and open
 
