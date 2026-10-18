@@ -337,7 +337,7 @@ final class AppController: ObservableObject {
     func scanRepositories(path: String) {
         guard !scanningRepositories else { return }
         scanningRepositories = true
-        repositoryScanMessage = "Scanning project names and technologies…"
+        repositoryScanMessage = "Finding project names…"
         repositoryScanTask = Task {
             defer { scanningRepositories = false }
             do {
@@ -351,7 +351,7 @@ final class AppController: ObservableObject {
                 try updated.validate()
                 try SettingsFile.save(updated, to: settingsURL)
                 settings = updated
-                repositoryScanMessage = "\(result.projects.count) repositories · \(result.names.count) names · \(result.technologies.count) technology terms"
+                repositoryScanMessage = "\(result.names.count) project names saved"
             } catch {
                 repositoryScanMessage = "Scan failed: \(error.localizedDescription) Previous vocabulary is still available."
             }

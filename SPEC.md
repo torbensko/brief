@@ -71,17 +71,15 @@ Use deterministic/conservative decoding initially. Record the actual model ident
 
 Do not fabricate confidence scores. If calibrated confidence is unavailable, display observable processing warnings instead.
 
-## 4. Automatic coding vocabulary
+## 4. Project name dictionary
 
-The primary audience is coders with multiple repositories. Scan a configurable repositories folder, defaulting to `~/repos`, and use names from **all** projects together. Do not require an active project selection or manual lists of general coding concepts.
+This feature is a personal name dictionary, analogous to contact names informing spellcheck. Its purpose is to recognize project names such as Blint instead of substituting a familiar dictionary word.
 
-Extract names from repository folders, package/manifests, product declarations, and project README titles, including nested monorepo packages. Infer languages and common frameworks from source filenames and dependency metadata, then add relevant vocabulary. General coding terms are built in. Do not execute repository code or interpret repository text as instructions.
+Scan a configurable repositories folder, defaulting to `~/repos`, for main project names. Read root metadata and concise project titles, with folder names as fallback. Combine duplicate worktrees and normalize version/monorepo suffixes. Use names from all projects together; no active-project selection is needed.
 
-Provide a simple Coding settings screen: repositories folder, scan/refresh action, discovered names and technologies, scan status/notes, and optional extra spellings. Refresh in the background at launch and cache the last successful scan locally. Skip generated/dependency folders and symbolic links. Keep prior vocabulary if a scan fails, show partial-read warnings, and never silently omit terms because of a context limit.
+Do not collect dependencies, framework terms, internal package/target names, source symbols, or an encyclopedia of coding vocabulary. Allow optional user-entered spellings. Display the resulting short dictionary directly.
 
-Merge existing user-entered terms from older profiles for backward compatibility. Supply the combined vocabulary to Qwen's `context` parameter during recognition. Preserve each recording's original vocabulary snapshot for retry; applying current vocabulary is explicit.
-
-Corrections may be added as optional terms. Do not claim automatic model training or use universal substitutions. Preserve negations, numbers, self-corrections, filenames, and identifiers; do not add mandatory rewriting or code generation.
+Refresh locally at launch and cache the results. Never execute repository code. Exclude obsolete broad caches until rescanned. Supply names through the recognizer's context parameter and preserve each recording's vocabulary snapshot. Do not apply universal word substitutions or claim guaranteed recognition.
 
 ## 5. Durable history / scratchpad
 

@@ -19,7 +19,7 @@ struct SettingsView: View {
             TabView {
                 general.tabItem { Label("General", systemImage: "slider.horizontal.3") }
                 model.tabItem { Label("Model", systemImage: "cpu") }
-                vocabulary.tabItem { Label("Coding", systemImage: "chevron.left.forwardslash.chevron.right") }
+                vocabulary.tabItem { Label("Project names", systemImage: "chevron.left.forwardslash.chevron.right") }
                 shortcuts.tabItem { Label("Shortcuts", systemImage: "keyboard") }
             }.padding(12)
             Divider()
@@ -124,9 +124,9 @@ struct SettingsView: View {
     }
     private var vocabulary: some View {
         Form {
-            Section("Coding vocabulary, ready to use") {
-                Text("Coding terms are built in. Names and technologies from all your repositories are used together for every recording.")
-                Text("No active project to choose. Scans stay on your Mac and refresh when the app opens.")
+            Section("Recognize your project names") {
+                Text("Names like Blint help dictation recognize the projects you talk about.")
+                Text("Names from all your projects are available together. Refreshed locally when the app opens.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Your repositories") {
@@ -148,27 +148,16 @@ struct SettingsView: View {
                     if controller.scanningRepositories { ProgressView().controlSize(.small) }
                     Text(controller.repositoryScanMessage).font(.caption).foregroundStyle(.secondary)
                 }
-                Text("The folder and scan results are saved automatically. Reads project metadata and source filenames; skips dependencies, build output, hidden folders, and symbolic links.")
+                Text("Finds the main name of each project. Duplicate worktrees are combined. Results are saved automatically.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let catalog = controller.settings.repositoryVocabulary {
-                Section("Discovered across all projects") {
-                    Text("\(catalog.projects.count) repositories · \(catalog.names.count) names")
+                Section("Your project dictionary") {
+                    Text("\(catalog.names.count) project names")
                         .font(.headline)
                     Text("Last scanned \(catalog.scannedAt.formatted(date: .abbreviated, time: .shortened))")
                         .font(.caption).foregroundStyle(.secondary)
-                    DisclosureGroup("Project names") {
-                        ForEach(catalog.projects) { project in
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(URL(fileURLWithPath: project.path).lastPathComponent).font(.headline)
-                                Text(project.names.joined(separator: ", ")).font(.caption).textSelection(.enabled)
-                                Text(project.technologies.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
-                            }.padding(.vertical, 3)
-                        }
-                    }
-                    DisclosureGroup("Languages and technology terms") {
-                        Text(catalog.technologies.joined(separator: ", ")).font(.caption).textSelection(.enabled)
-                    }
+                    Text(catalog.names.joined(separator: ", ")).textSelection(.enabled)
                     if !catalog.warnings.isEmpty {
                         DisclosureGroup("Scan notes (\(catalog.warnings.count))") {
                             Text(catalog.warnings.joined(separator: "\n")).font(.caption).textSelection(.enabled)
@@ -177,7 +166,7 @@ struct SettingsView: View {
                 }
             }
             Section("Optional extra spellings") {
-                Text("Only add names or spellings the scan missed. Coding concepts are already included.")
+                Text("Optional: add a name or spelling the scan missed.")
                     .font(.caption).foregroundStyle(.secondary)
                 TextEditor(text: $draft.globalTerms).font(.body.monospaced()).frame(minHeight: 65)
                 if !draft.profiles.isEmpty {

@@ -1,6 +1,6 @@
 # LocalDictation
 
-Native macOS menu-bar dictation with local Qwen3-ASR recognition, automatic coding vocabulary, recoverable recordings, and conservative text insertion.
+Native macOS menu-bar dictation with local Qwen3-ASR recognition, a project name dictionary, recoverable recordings, and conservative text insertion.
 
 ## Build and open
 
@@ -25,13 +25,13 @@ The waveform icon in the menu bar opens Record, Insert Pending, History, Setting
 
 Audio, transcripts, settings, and downloaded weights live in `~/Library/Application Support/LocalDictation`, outside this project. Model downloading is explicit; recognition uses local files. Audio is retained until explicitly deleted.
 
-## Automatic coding vocabulary
+## Project name dictionary
 
-Settings → Coding scans `~/repos` automatically at launch. Choose another repositories folder or use **Scan repositories** to refresh it. All discovered names are included together in every new recording; no profile switching is required.
+Settings → Project names scans `~/repos` at launch and keeps a short list of main project names, such as Blint and BuildIQ. It reads root project metadata and short README titles, uses the folder name as a fallback, and combines duplicate Git worktrees. Names from all projects are available together.
 
-The scanner collects folder names, manifest names (including nested packages), product names, and project README titles. It recognizes source languages and common dependency stacks, adding appropriate coding terms. General coding vocabulary is built in. Optional extra spellings and terms from older saved profiles are preserved.
+Dependencies, internal package names, source symbols, and general coding terminology are not added. Optional user-entered spellings are preserved. The dictionary guides recognition; it does not perform automatic word replacement or guarantee a particular transcription.
 
-Scans run locally in the background, skip dependencies/build output/hidden folders/symlinks, and never execute project files. Results are cached in Application Support. Failed scans retain the previous vocabulary; warnings are visible, and oversized combined context is rejected rather than silently truncated. Existing recordings retain their original vocabulary snapshot unless explicitly retranscribed with current vocabulary.
+Scans stay local and results are cached in Application Support. Older broad scan caches are excluded until refreshed. Existing recordings retain their original vocabulary snapshot unless explicitly retranscribed with current vocabulary.
 
 ## Checks
 

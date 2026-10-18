@@ -125,8 +125,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var selectedProfile: VocabularyProfile? { profiles.first { $0.id == selectedProfileID } }
     public var vocabularyContext: String {
         Vocabulary.terms((repositoryVocabulary?.names ?? []) .joined(separator: "\n") + "\n" +
-            globalTerms + "\n" + profiles.map { $0.name + "\n" + $0.terms }.joined(separator: "\n") + "\n" +
-            RepositoryScanner.codingTerms + "\n" + (repositoryVocabulary?.technologies ?? []).joined(separator: "\n"))
+            globalTerms + "\n" + profiles.map { $0.name + "\n" + $0.terms }.joined(separator: "\n"))
             .joined(separator: ", ")
     }
     public func validate() throws {

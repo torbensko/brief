@@ -42,3 +42,9 @@ Replaced the manual active-profile workflow with shared vocabulary from all repo
 Verified 41 tests across five suites, including nested package discovery, stack detection, ignored dependency/hidden/symlink folders, malformed metadata, legacy settings compatibility, cache persistence, and an opt-in scan of this Mac's repos folder. That scan found 38 repository folders and 168 distinct names in about six seconds, with no scan notes. Combined recognition context was 4,404 bytes, below the existing 16 KB limit. Private scan contents remain in Application Support, outside Git.
 
 The rebuilt app's Coding screen was visually inspected and showed 38 repositories, 168 names, and 35 technology terms. The saved catalog was verified on disk. App signature verification and the packaged Metal worker self-test passed again. Speech accuracy with the expanded context still requires a model and real recording, as noted above.
+
+## Project-name-only correction — 19 October 2026
+
+Supersedes the broad vocabulary update above. Removed built-in coding concepts, dependency/framework extraction, recursive package indexing, and technology UI. The scanner now extracts one main name per root project and deduplicates Git worktrees and names. Earlier broad caches are excluded pending refresh; explicit custom spellings remain supported.
+
+Verified 43 tests, including dependency/internal-package exclusion, worktree deduplication, version suffix cleanup, old-cache exclusion, and the actual repos scan. The result is 17 project names and 230 bytes of context, including the exact spelling Blint. The signed app was rebuilt, restarted, and its Project names tab verified to show the saved dictionary. Recognition accuracy still requires an installed model and actual speech testing.

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import DictationCore
 
-@Suite("Automatic coding vocabulary")
+@Suite("Project name dictionary")
 struct RepositoryVocabularyTests {
     private func fixture() throws -> URL {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -14,7 +14,7 @@ struct RepositoryVocabularyTests {
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try text.write(to: file, atomically: true, encoding: .utf8)
     }
-    @Test func allProjectsAndNestedPackagesShareOneContext() throws {
+    @Test func projectNamesExcludeDependenciesAndInternalPackages() throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try write(#"{"name":"@acme/Blint","productName":"Blint","dependencies":{"react":"1","@tanstack/react-query":"1"}}"#, "blint/package.json", in: root)
         try write(#"{"name":"@acme/design-kit","devDependencies":{"typescript":"1"}}"#, "blint/packages/ui/package.json", in: root)
@@ -24,15 +24,15 @@ struct RepositoryVocabularyTests {
         let scan = try RepositoryScanner.scan(path: root.path)
         #expect(scan.projects.count == 2)
         #expect(scan.names.contains("Blint"))
-        #expect(scan.names.contains("@acme/design-kit"))
+        #expect(!scan.names.contains("@acme/design-kit"))
         #expect(scan.names.contains("Finch Studio"))
-        #expect(scan.technologies.contains("FastAPI"))
-        #expect(scan.technologies.contains("Python"))
-        #expect(scan.technologies.contains("useInfiniteQuery"))
+
         var settings = AppSettings(); settings.repositoryVocabulary = scan
         #expect(settings.vocabularyContext.contains("Blint"))
         #expect(settings.vocabularyContext.contains("Finch"))
-        #expect(settings.vocabularyContext.contains("TypeScript"))
+        #expect(!settings.vocabularyContext.contains("TypeScript"))
+        #expect(!settings.vocabularyContext.contains("FastAPI"))
+        #expect(!settings.vocabularyContext.contains("useInfiniteQuery"))
         try settings.validate()
     }
     @Test func ignoresDependenciesHiddenFoldersAndSymlinks() throws {
@@ -66,7 +66,7 @@ struct RepositoryVocabularyTests {
         #expect(settings.vocabularyContext.contains("AlphaTerm"))
         #expect(settings.vocabularyContext.contains("BetaTerm"))
         #expect(settings.vocabularyContext.contains("MyExtraWord"))
-        #expect(settings.vocabularyContext.contains("JSON"))
+        #expect(!settings.vocabularyContext.contains("JSON"))
     }
     @Test func catalogSurvivesRestart() throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
@@ -76,11 +76,28 @@ struct RepositoryVocabularyTests {
         try SettingsFile.save(settings, to: url)
         #expect(try SettingsFile.load(from: url) == settings)
     }
+    @Test func canonicalNameAndWorktreesAreDeduplicated() throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try write("# Blint v2", "blint/README.md", in: root)
+        try write("../..", "blint/.git/worktrees/feature/commondir", in: root)
+        try write("gitdir: ../blint/.git/worktrees/feature", "blint-feature/.git", in: root)
+        try write("# Blint v2", "blint-copy/README.md", in: root)
+        let result = try RepositoryScanner.scan(path: root.path)
+        #expect(result.names == ["Blint"])
+        #expect(result.projects.count == 1)
+    }
+    @Test func oldBroadCacheIsNotUsedAsNameDictionary() throws {
+        let data = Data(#"{"root":"/tmp","scannedAt":0,"projects":[{"path":"/tmp/a","names":["InternalPackage"],"technologies":["React"]}],"warnings":[]}"#.utf8)
+        let catalog = try JSONDecoder().decode(RepositoryVocabulary.self, from: data)
+        var settings = AppSettings(); settings.repositoryVocabulary = catalog
+        #expect(settings.vocabularyContext.isEmpty)
+    }
     @Test func actualRepositoryScanWhenRequested() throws {
         guard let path = ProcessInfo.processInfo.environment["DICTATION_SCAN_TEST_ROOT"] else { return }
         var settings = AppSettings()
         settings.repositoryVocabulary = try RepositoryScanner.scan(path: path)
         try settings.validate()
+        print("Names: \(settings.repositoryVocabulary!.names.joined(separator: ", "))")
         print("Repository scan: \(settings.repositoryVocabulary!.projects.count) repositories, \(settings.repositoryVocabulary!.names.count) names, \(settings.vocabularyContext.utf8.count) context bytes, \(settings.repositoryVocabulary!.warnings.count) notes")
     }
 }
