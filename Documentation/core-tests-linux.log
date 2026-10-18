@@ -1,0 +1,91 @@
+Building for debugging...
+[0/2] Write swift-version--1BA0962812E73E12.txt
+Build complete! (0.10s)
+Test Suite 'All tests' started at 2026-10-16 08:07:29.883
+Test Suite 'debug.xctest' started at 2026-10-16 08:07:29.885
+Test Suite 'debug.xctest' passed at 2026-10-16 08:07:29.885
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'All tests' passed at 2026-10-16 08:07:29.885
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.2.1 (c9d57c83568b06d)
+↳ Target Platform: x86_64-unknown-linux-gnu
+◇ Suite "Recognition context" started.
+◇ Suite "Safe delivery" started.
+◇ Suite "Audio completeness" started.
+◇ Suite "Durable history" started.
+◇ Test terminalIsOptIn() started.
+◇ Test unchangedEditableTargetCanReceiveText() started.
+◇ Test manualOnlyModeHoldsAutomatically() started.
+◇ Test normalisesWhitespaceAndDuplicates() started.
+◇ Test passwordsAreBlockedEvenForExplicitInsertion() started.
+◇ Test accessibilityIsRequired() started.
+◇ Test warningsPreventAutomaticInsertion() started.
+◇ Test switchedFocusIsHeldEvenWhenSwitchedBack() started.
+◇ Test projectSpellingWins() started.
+◇ Test explicitInsertionCanChooseNewTarget() started.
+◇ Test aDifferentTargetIsHeld() started.
+◇ Test duplicateShortcutsAreRejected() started.
+◇ Test specialModelTokensAreRejected() started.
+◇ Test unmodifiedShortcutsAreRejected() started.
+◇ Test oversizedVocabularyIsRejectedRatherThanSilentlyCut() started.
+◇ Test unknownFieldsAreHeld() started.
+◇ Test emptyVocabularyIsAllowed() started.
+◇ Test activeRecordingCannotBeDeleted() started.
+◇ Test longRecordingsCoverEverySampleExactlyOnce() started.
+◇ Test settingsRoundTrip() started.
+◇ Test aPartialFinalSampleDoesNotLoseEarlierAudio() started.
+◇ Test retranscribingRetainsEarlierAttempts() started.
+◇ Test floatPCMIsLossless() started.
+◇ Test failedInsertionCannotDeleteTranscript() started.
+◇ Test wavHeaderAndPayloadAreValid() started.
+◇ Test editingDoesNotMutateOriginalRecognition() started.
+◇ Test warningsRequireReview() started.
+◇ Test tokenBudgetScalesWithDuration() started.
+◇ Test corruptEntryDoesNotHideOtherEntries() started.
+◇ Test recordingSurvivesAStoreRestart() started.
+◇ Test emptyOutputIsFlagged() started.
+◇ Test exhaustedBudgetIsNotPresentedAsComplete() started.
+◇ Test exportCannotOverwriteRecoveryOriginal() started.
+◇ Test cleanTranscriptHasNoWarning() started.
+◇ Test normalDictationUsesASingleBatch() started.
+✔ Test unchangedEditableTargetCanReceiveText() passed after 0.021 seconds.
+✔ Test terminalIsOptIn() passed after 0.022 seconds.
+✔ Test manualOnlyModeHoldsAutomatically() passed after 0.022 seconds.
+✔ Test accessibilityIsRequired() passed after 0.022 seconds.
+✔ Test warningsPreventAutomaticInsertion() passed after 0.022 seconds.
+✔ Test explicitInsertionCanChooseNewTarget() passed after 0.022 seconds.
+✔ Test aDifferentTargetIsHeld() passed after 0.022 seconds.
+✔ Test normalisesWhitespaceAndDuplicates() passed after 0.022 seconds.
+✔ Test switchedFocusIsHeldEvenWhenSwitchedBack() passed after 0.022 seconds.
+✔ Test projectSpellingWins() passed after 0.022 seconds.
+✔ Test emptyVocabularyIsAllowed() passed after 0.022 seconds.
+✔ Test unknownFieldsAreHeld() passed after 0.022 seconds.
+✔ Test oversizedVocabularyIsRejectedRatherThanSilentlyCut() passed after 0.022 seconds.
+✔ Test specialModelTokensAreRejected() passed after 0.022 seconds.
+✔ Test duplicateShortcutsAreRejected() passed after 0.022 seconds.
+✔ Test aPartialFinalSampleDoesNotLoseEarlierAudio() passed after 0.022 seconds.
+✔ Test longRecordingsCoverEverySampleExactlyOnce() passed after 0.023 seconds.
+✔ Test unmodifiedShortcutsAreRejected() passed after 0.023 seconds.
+✔ Test passwordsAreBlockedEvenForExplicitInsertion() passed after 0.023 seconds.
+✔ Test settingsRoundTrip() passed after 0.023 seconds.
+✔ Test activeRecordingCannotBeDeleted() passed after 0.023 seconds.
+✔ Test floatPCMIsLossless() passed after 0.023 seconds.
+✔ Test warningsRequireReview() passed after 0.023 seconds.
+✔ Test corruptEntryDoesNotHideOtherEntries() passed after 0.022 seconds.
+✔ Test failedInsertionCannotDeleteTranscript() passed after 0.023 seconds.
+✔ Test wavHeaderAndPayloadAreValid() passed after 0.023 seconds.
+✔ Test recordingSurvivesAStoreRestart() passed after 0.023 seconds.
+✔ Test tokenBudgetScalesWithDuration() passed after 0.022 seconds.
+✔ Test exhaustedBudgetIsNotPresentedAsComplete() passed after 0.022 seconds.
+✔ Test cleanTranscriptHasNoWarning() passed after 0.022 seconds.
+✔ Test emptyOutputIsFlagged() passed after 0.023 seconds.
+✔ Test exportCannotOverwriteRecoveryOriginal() passed after 0.022 seconds.
+✔ Test editingDoesNotMutateOriginalRecognition() passed after 0.023 seconds.
+✔ Test normalDictationUsesASingleBatch() passed after 0.022 seconds.
+✔ Test retranscribingRetainsEarlierAttempts() passed after 0.023 seconds.
+✔ Suite "Safe delivery" passed after 0.023 seconds.
+✔ Suite "Recognition context" passed after 0.023 seconds.
+✔ Suite "Audio completeness" passed after 0.023 seconds.
+✔ Suite "Durable history" passed after 0.023 seconds.
+✔ Test run with 35 tests in 4 suites passed after 0.024 seconds.

@@ -1,0 +1,45 @@
+# LocalDictation
+
+Native macOS menu-bar dictation with local Qwen3-ASR recognition, project vocabulary, recoverable recordings, and conservative text insertion.
+
+## Build and open
+
+Use an Apple Silicon Mac with full Xcode and Swift 6.4 (the toolchain verified here). Install Xcode's Metal compiler once if it is missing:
+
+```sh
+xcodebuild -downloadComponent MetalToolchain
+Scripts/build-app.sh
+open build/LocalDictation.app
+```
+
+The first build downloads Swift dependencies. The script creates a locally ad-hoc-signed app containing both executables and the MLX Metal shaders. A paid developer account is not required. `SIGNING_IDENTITY` can optionally select an installed signing identity. Keep the app at a consistent location when granting permissions; rebuilding an ad-hoc-signed app can require granting permissions again.
+
+The waveform icon in the menu bar opens Record, Insert Pending, History, Settings, and Quit. Settings opens automatically until a model folder is configured. Use the packaged app rather than `swift run`, since transcription requires the embedded worker and resources.
+
+## First use
+
+1. In Settings → Model, explicitly download the Qwen3-ASR BF16 model, or choose an existing local model folder and save settings. Weights are several gigabytes and are not included in the project.
+2. Grant Microphone access in Settings → General. Accessibility is needed only for insertion into other apps; recording and manual copy remain available without it.
+3. Review the shortcuts in Settings → Shortcuts. Start and stop a recording using the same shortcut.
+4. Review the result in History. If the destination changed or recognition raised a warning, the transcript remains saved for review or manual insertion.
+
+Audio, transcripts, settings, and downloaded weights live in `~/Library/Application Support/LocalDictation`, outside this project. Model downloading is explicit; recognition uses local files. Audio is retained until explicitly deleted.
+
+## Checks
+
+```sh
+Scripts/check.sh
+```
+
+This runs the core tests, builds/signs the app, and exercises MLX computation using the packaged worker and Metal shaders. It does not substitute for a real microphone, recognition, and cross-application insertion test. See [Documentation/VALIDATION.md](Documentation/VALIDATION.md) for the latest verified status and remaining manual checks.
+
+## Source
+
+- `Sources/DictationCore`: persistence, models, audio utilities, vocabulary, delivery policy.
+- `Sources/LocalDictation`: lifecycle/menu bar, native UI, audio capture, shortcuts, insertion, installer, worker client.
+- `Sources/DictationWorker`: offline Qwen3-ASR model worker.
+- `Tests/DictationCoreTests`: core regression tests.
+- [SPEC.md](SPEC.md): product requirements, including acceptance checks.
+- [HANDOFF.md](HANDOFF.md): historical Linux handoff; its missing-entry-point and build-status notes describe the source before the macOS integration work.
+
+The imported folder had no Git history. A new repository has been initialized here; the original archive's commit history was not present.

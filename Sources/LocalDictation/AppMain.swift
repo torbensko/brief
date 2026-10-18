@@ -1,0 +1,159 @@
+import AppKit
+import SwiftUI
+
+@main
+struct LocalDictationApp {
+    @MainActor static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        withExtendedLifetime(delegate) { app.run() }
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    private var controller: AppController?
+    private var statusItem: NSStatusItem?
+    private var historyWindow: NSWindow?
+    private var settingsWindow: NSWindow?
+    private var overlay: RecordingPanel?
+    private var terminating = false
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            let controller = try AppController()
+            self.controller = controller
+            installMainMenu()
+            controller.showHistory = { [weak self] in self?.showHistory() }
+            controller.showSettings = { [weak self] in self?.showSettings() }
+            controller.showOverlay = { [weak self] in self?.showOverlay() }
+            controller.hideOverlay = { [weak self] in self?.overlay?.orderOut(nil) }
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "LocalDictation")
+            let menu = NSMenu()
+            menu.delegate = self
+            item.menu = menu
+            statusItem = item
+            Task { await controller.bootstrap() }
+        } catch {
+            let alert = NSAlert(error: error)
+            alert.runModal()
+            NSApp.terminate(nil)
+        }
+    }
+
+    private func installMainMenu() {
+        let main = NSMenu()
+        let applicationItem = NSMenuItem()
+        let applicationMenu = NSMenu(title: "LocalDictation")
+        let quitItem = NSMenuItem(title: "Quit LocalDictation", action: #selector(quit), keyEquivalent: "q")
+        quitItem.target = self
+        applicationMenu.addItem(quitItem)
+        applicationItem.submenu = applicationMenu
+        main.addItem(applicationItem)
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: "Edit")
+        for (title, selector, key) in [
+            ("Undo", "undo:", "z"), ("Cut", "cut:", "x"), ("Copy", "copy:", "c"),
+            ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")
+        ] {
+            edit.addItem(NSMenuItem(title: title, action: NSSelectorFromString(selector), keyEquivalent: key))
+        }
+        editItem.submenu = edit
+        main.addItem(editItem)
+        let windowItem = NSMenuItem()
+        let windows = NSMenu(title: "Window")
+        let history = NSMenuItem(title: "History", action: #selector(showHistory), keyEquivalent: "h")
+        history.keyEquivalentModifierMask = [.command, .shift]
+        history.target = self
+        windows.addItem(history)
+        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settings.target = self
+        windows.addItem(settings)
+        windowItem.submenu = windows
+        main.addItem(windowItem)
+        NSApp.mainMenu = main
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let controller else { return }
+        menu.removeAllItems()
+        func add(_ title: String, _ action: Selector?, enabled: Bool = true) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            item.isEnabled = enabled
+            menu.addItem(item)
+        }
+        menu.autoenablesItems = false
+        add(controller.message, nil, enabled: false)
+        add(controller.modelLoaded ? "Model loaded" : "Model not loaded", nil, enabled: false)
+        menu.addItem(.separator())
+        add(controller.phase == .recording ? "Stop recording" : "Record", #selector(record),
+            enabled: !controller.isBusy || controller.phase == .recording)
+        add("Insert pending", #selector(insert), enabled: !controller.isBusy && controller.pendingSession != nil)
+        add("History", #selector(showHistory))
+        add("Settings…", #selector(showSettings))
+        menu.addItem(.separator())
+        add("Quit LocalDictation", #selector(quit))
+    }
+
+    @objc private func record() { controller?.toggleRecording() }
+    @objc private func insert() { controller?.insertPending() }
+    @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func showHistory() {
+        guard let controller else { return }
+        if historyWindow == nil {
+            historyWindow = window(title: "LocalDictation — History", content: HistoryView(controller: controller))
+        }
+        activate(historyWindow)
+    }
+    @objc private func showSettings() {
+        guard let controller else { return }
+        if settingsWindow == nil {
+            settingsWindow = window(title: "LocalDictation — Settings", content: SettingsView(controller: controller))
+        }
+        activate(settingsWindow)
+    }
+    private func window<V: View>(title: String, content: V) -> NSWindow {
+        let window = NSWindow(contentViewController: NSHostingController(rootView: content))
+        window.title = title
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        return window
+    }
+    private func activate(_ window: NSWindow?) {
+        NSApp.activate(ignoringOtherApps: true)
+        window?.makeKeyAndOrderFront(nil)
+    }
+    private func showOverlay() {
+        guard let controller else { return }
+        if overlay == nil {
+            let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 180),
+                styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller))
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.level = .floating
+            panel.hidesOnDeactivate = false
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            overlay = panel
+        }
+        if let screen = NSScreen.main, let overlay {
+            let frame = screen.visibleFrame
+            overlay.setFrameOrigin(NSPoint(x: frame.midX - overlay.frame.width / 2, y: frame.minY + 30))
+            overlay.orderFrontRegardless()
+        }
+    }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !terminating, let controller else { return .terminateNow }
+        terminating = true
+        Task {
+            await controller.shutdown()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+}
