@@ -2,6 +2,19 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 configuration="${CONFIGURATION:-debug}"
+# A stable development identity lets macOS retain privacy permissions across rebuilds.
+# Respect explicit selection (including '-' for an intentionally ad-hoc build).
+identity="${SIGNING_IDENTITY:-}"
+if [ -z "$identity" ]; then
+    identities="$(security find-identity -v -p codesigning | awk '/"Apple Development:/ { print $2 }')"
+    count="$(printf '%s\n' "$identities" | awk 'NF { n++ } END { print n+0 }')"
+    if [ "$count" = 1 ]; then
+        identity="$identities"
+    else
+        identity="-"
+        echo "No unique Apple Development identity. Using ad-hoc signing; macOS permissions may need renewal after rebuilding. Set SIGNING_IDENTITY to choose a stable identity."
+    fi
+fi
 swift build -c "$configuration"
 bin_dir="$(swift build -c "$configuration" --show-bin-path)"
 app="$PWD/build/LocalDictation.app"
@@ -20,7 +33,7 @@ if [ -z "$metal_library" ]; then
     exit 1
 fi
 cp "$metal_library" "$app/Contents/Resources/mlx.metallib"
-codesign --force --sign "${SIGNING_IDENTITY:--}" "$app/Contents/MacOS/DictationWorker"
-codesign --force --sign "${SIGNING_IDENTITY:--}" "$app"
+codesign --force --sign "$identity" "$app/Contents/MacOS/DictationWorker"
+codesign --force --sign "$identity" "$app"
 codesign --verify --deep --strict "$app"
 printf 'Built %s\n' "$app"

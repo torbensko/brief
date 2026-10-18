@@ -81,3 +81,13 @@ Added hold-to-dictate as the default, with toggle mode selectable in Shortcuts. 
 The panel defaults to top centre, has a visible drag handle, remembers its frame across launches, and returns to a visible screen when its saved display is unavailable. The drag handle leaves action buttons independently clickable and the panel remains non-activating.
 
 Verification: 57 tests pass across eight suites, including hold/release, preparation cancellation, ignored busy presses, menu-stop-before-release, toggle repeat suppression, and legacy settings/default persistence. App packaging/signing and the Metal self-test pass. Inspected the updated card and Shortcuts UI in isolated preview; dragged the handle and confirmed a saved window frame. Physical held-key capture and end-to-end insertion still require a live session. The insertion path remains automatic by default, gated on Accessibility access and the original field remaining suitable/unchanged; it does not submit the text.
+
+## Diagnosed missing insertion access — 19 October 2026
+
+Investigated the user's failed GPT-field delivery. The running app showed Microphone enabled but Accessibility permission needed for insertion. Automatic insertion and clipboard fallback were both enabled. The latest successful recognition had no warnings and no captured target application, consistent with the permission gate preventing target capture. No evidence yet establishes an editor-specific insertion failure.
+
+Added a persistent Accessibility-blocked notice and Enable insertion action to the result panel and General settings. It remains visible after Copy updates the transient status, and checks permission changes every two seconds. Visually verified the notice on the user's actual retained result and navigation to setup.
+
+The previous ad-hoc signing changed the app identity across rebuilds, causing microphone permission to become unavailable after the rebuild as well. The build now uses a unique installed Apple Development identity when available, with explicit SIGNING_IDENTITY override and an announced ad-hoc fallback. This Mac's signed build passed verification and has a certificate-based designated requirement rather than a binary hash. Permission grants for this new identity still require user authorization.
+
+The 10 safe-delivery tests pass, including the missing-Accessibility gate. App build and signature verification pass. End-to-end GPT-field insertion remains pending the Accessibility grant; do not present compilation or the permission diagnosis as a successful live paste.

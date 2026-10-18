@@ -43,7 +43,10 @@ struct RecordingOverlay: View {
             } else {
                 Text(controller.message).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
-        }.padding(18).frame(width: 446, height: 192, alignment: .topLeading)
+            InsertionPermissionNotice(automaticInsertion: controller.settings.automaticInsertion) {
+                controller.showSettings?()
+            }
+        }.padding(18).frame(width: 446, height: 232, alignment: .topLeading)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }
@@ -71,5 +74,23 @@ private final class PanelGrip: NSView {
     override func mouseDown(with event: NSEvent) {
         window?.performDrag(with: event)
         if let window { window.saveFrame(usingName: "DictationFloatingPanel") }
+    }
+}
+
+/// Permission status stays visible even after Copy replaces the transient delivery message.
+struct InsertionPermissionNotice: View {
+    let automaticInsertion: Bool
+    var openSettings: () -> Void
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 2)) { _ in
+            if automaticInsertion && !InsertionService.trusted {
+                HStack {
+                    Label("Insertion blocked · Accessibility access needed", systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(.orange)
+                    Spacer(minLength: 4)
+                    Button("Enable insertion", action: openSettings).controlSize(.small)
+                }
+            }
+        }
     }
 }

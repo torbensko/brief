@@ -25,7 +25,7 @@ Scripts/build-app.sh
 open build/LocalDictation.app
 ```
 
-The first build downloads Swift dependencies. The script creates a locally ad-hoc-signed app containing both executables and the MLX Metal shaders. A paid developer account is not required. `SIGNING_IDENTITY` can optionally select an installed signing identity. Keep the app at a consistent location when granting permissions; rebuilding an ad-hoc-signed app can require granting permissions again.
+The first build downloads Swift dependencies. The script packages both executables and the MLX Metal shaders. It uses the installed Apple Development signing identity when exactly one is available, so macOS can retain permissions across rebuilds. Otherwise it falls back to ad-hoc signing; a paid developer account is not required. `SIGNING_IDENTITY` selects a specific installed identity (or `-` for ad-hoc). Keep the app at a consistent location. Moving from ad-hoc to development signing requires granting permissions once for the new identity; ad-hoc rebuilds can require granting them repeatedly.
 
 The waveform icon in the menu bar opens Record, Insert Pending, Recent dictation, Settings, and Quit. Settings opens automatically until a model folder is configured. Use the packaged app rather than `swift run`, since transcription requires the embedded worker and resources.
 

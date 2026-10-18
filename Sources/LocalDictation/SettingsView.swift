@@ -48,6 +48,12 @@ struct SettingsView: View {
     private var general: some View {
         Form {
             Section("Delivery") {
+                InsertionPermissionNotice(automaticInsertion: draft.automaticInsertion) {
+                    InsertionService.requestPermission()
+                    openPrivacy("Privacy_Accessibility")
+                }
+                Text("Automatic insertion needs macOS Accessibility access. Microphone access alone only enables recording.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Insert automatically when the original field is unchanged", isOn: $draft.automaticInsertion)
                 Toggle("Use clipboard paste when direct insertion is unavailable", isOn: $draft.allowPasteFallback)
                 Text("Paste fallback leaves the transcript on your clipboard. It never presses Return. Delivery is recorded as requested, not confirmed.")
