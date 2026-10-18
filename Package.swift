@@ -15,7 +15,7 @@ dependencies += [
     .package(url: "https://github.com/ml-explore/mlx-swift.git", exact: "0.32.3")
 ]
 products += [
-    .executable(name: "LocalDictation", targets: ["LocalDictation"]),
+    .executable(name: "Brief", targets: ["LocalDictation"]),
     .executable(name: "DictationWorker", targets: ["DictationWorker"])
 ]
 targets += [
@@ -28,5 +28,5 @@ targets += [
     ], swiftSettings: [.swiftLanguageMode(.v5)])
 ]
 #endif
-let package = Package(name: "LocalDictation", platforms: [.macOS(.v14)],
+let package = Package(name: "Brief", platforms: [.macOS(.v14)],
                       products: products, dependencies: dependencies, targets: targets)

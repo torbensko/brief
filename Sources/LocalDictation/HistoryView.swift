@@ -18,7 +18,7 @@ struct HistoryView: View {
             HStack(spacing: 12) {
                 Image(systemName: "waveform.circle.fill").font(.system(size: 30)).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("LocalDictation").font(.title2.bold())
+                    Text("Brief").font(.title2.bold())
                     Text("Recent dictation · recover text that missed its destination").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

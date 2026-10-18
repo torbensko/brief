@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             controller.showOverlay = { [weak self] in self?.showOverlay() }
             controller.hideOverlay = { [weak self] in self?.overlay?.orderOut(nil) }
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "LocalDictation")
+            item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Brief")
             let menu = NSMenu()
             menu.delegate = self
             item.menu = menu
@@ -69,8 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func installMainMenu() {
         let main = NSMenu()
         let applicationItem = NSMenuItem()
-        let applicationMenu = NSMenu(title: "LocalDictation")
-        let quitItem = NSMenuItem(title: "Quit LocalDictation", action: #selector(quit), keyEquivalent: "q")
+        let applicationMenu = NSMenu(title: "Brief")
+        let quitItem = NSMenuItem(title: "Quit Brief", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         applicationMenu.addItem(quitItem)
         applicationItem.submenu = applicationMenu
@@ -120,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Show last text", #selector(showLatest), enabled: controller.latestTranscript != nil)
         add("Settings…", #selector(showSettings))
         menu.addItem(.separator())
-        add("Quit LocalDictation", #selector(quit))
+        add("Quit Brief", #selector(quit))
     }
 
     @objc private func record() { controller?.toggleRecording() }
@@ -130,14 +130,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func showHistory() {
         guard let controller else { return }
         if historyWindow == nil {
-            historyWindow = window(title: "LocalDictation — Recent", content: HistoryView(controller: controller))
+            historyWindow = window(title: "Brief — Recent", content: HistoryView(controller: controller))
         }
         activate(historyWindow)
     }
     @objc private func showSettings() {
         guard let controller else { return }
         if settingsWindow == nil {
-            settingsWindow = window(title: "LocalDictation — Settings", content: SettingsView(controller: controller))
+            settingsWindow = window(title: "Brief — Settings", content: SettingsView(controller: controller))
         }
         activate(settingsWindow)
     }

@@ -1,4 +1,8 @@
-# LocalDictation
+# Brief
+
+![Brief icon](Resources/Brief.png)
+
+Local, coding-centric dictation for macOS. Speak your next brief.
 
 Local, coding-centric macOS dictation for speaking high-level specifications and documentation to coding agents. The intended experience is like speaking with another coder who knows your terms and projects.
 
@@ -22,7 +26,7 @@ Use an Apple Silicon Mac with full Xcode and Swift 6.4 (the toolchain verified h
 ```sh
 xcodebuild -downloadComponent MetalToolchain
 Scripts/build-app.sh
-open build/LocalDictation.app
+open build/Brief.app
 ```
 
 The first build downloads Swift dependencies. The script packages both executables and the MLX Metal shaders. It uses the installed Apple Development signing identity when exactly one is available, so macOS can retain permissions across rebuilds. Otherwise it falls back to ad-hoc signing; a paid developer account is not required. `SIGNING_IDENTITY` selects a specific installed identity (or `-` for ad-hoc). Keep the app at a consistent location. Moving from ad-hoc to development signing requires granting permissions once for the new identity; ad-hoc rebuilds can require granting them repeatedly.
@@ -70,3 +74,9 @@ This runs the core tests, builds/signs the app, and exercises MLX computation us
 - [HANDOFF.md](HANDOFF.md): historical Linux handoff; its missing-entry-point and build-status notes describe the source before the macOS integration work.
 
 The imported folder had no Git history. A new repository has been initialized here; the original archive's commit history was not present.
+
+## Releases
+
+See [publishing Brief](Documentation/RELEASING.md) for GitHub Actions signing secrets, notarisation, and packaging. The first public version is 1.0.0. Signed downloads are published only after release signing is configured.
+
+The app is now named Brief; its bundle identifier and Application Support directory retain the original LocalDictation name to preserve settings and model downloads.

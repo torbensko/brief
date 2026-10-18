@@ -8,7 +8,7 @@ struct RecordingOverlay: View {
             HStack {
                 Image(systemName: controller.phase == .recording ? "mic.fill" : "waveform")
                     .foregroundStyle(controller.phase == .recording ? Color.red : Color.accentColor)
-                Text(controller.phase == .recording ? "Recording" : "LocalDictation").font(.headline)
+                Text(controller.phase == .recording ? "Recording" : "Brief").font(.headline)
                 Spacer()
                 if controller.phase == .recording {
                     Text(duration(controller.elapsed)).font(.body.monospacedDigit())

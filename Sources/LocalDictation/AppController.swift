@@ -155,7 +155,7 @@ final class AppController: ObservableObject {
     private func startRecording() async {
         do {
             guard await AudioRecorder.requestPermission() else {
-                throw DictationError.message("Microphone permission is required. Enable LocalDictation under System Settings → Privacy & Security → Microphone.")
+                throw DictationError.message("Microphone permission is required. Enable Brief under System Settings → Privacy & Security → Microphone.")
             }
             guard !releasedDuringPreparation else {
                 phase = .idle; message = "Ready · hold the shortcut while speaking"; return

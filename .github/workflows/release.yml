@@ -1,0 +1,107 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-release
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.RELEASE_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(cat VERSION)"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          gh release list --limit 1000 --json tagName,isDraft > releases.json
+          VERSION="$VERSION" python3 - <<'PY'
+          import json, os
+          releases = json.load(open('releases.json'))
+          published = any(r['tagName'] == 'v' + os.environ['VERSION'] and not r['isDraft'] for r in releases)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('release=' + str(not published).lower() + '\n')
+          PY
+  build:
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ${{ vars.MACOS_RUNNER || 'xcode-27' }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -downloadComponent MetalToolchain
+      - run: swift test
+      - name: Import Developer ID certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: ./Scripts/import-signing-certificate.sh
+      - name: Build Apple Silicon app, notarize and package
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: ./Scripts/package.sh
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          if [[ -n "${KEYCHAIN_PATH:-}" && -f "$KEYCHAIN_PATH" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-release
+          path: |
+            dist/Brief.dmg
+            dist/Brief.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Keep notarization results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notarization-results
+          path: dist/notary-*.json
+          if-no-files-found: ignore
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-release
+          path: artifacts
+      - name: Publish completed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          TAG="v$RELEASE_VERSION"
+          gh release list --limit 1000 --json tagName,isDraft > releases.json
+          STATE="$(TAG="$TAG" python3 -c 'import json,os; r=next((r for r in json.load(open("releases.json")) if r["tagName"]==os.environ["TAG"]),None); print("missing" if r is None else "draft" if r["isDraft"] else "published")')"
+          [[ "$STATE" != published ]] || { echo 'Release already published; refusing to replace it.' >&2; exit 1; }
+          if [[ "$STATE" == missing ]]; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --draft \
+              --title "Brief $RELEASE_VERSION" --notes-file RELEASE_NOTES.md
+          fi
+          EXISTING_TARGET="$(git ls-remote origin "refs/tags/$TAG" "refs/tags/$TAG^{}" | tail -n1 | cut -f1)"
+          if [[ -n "$EXISTING_TARGET" && "$EXISTING_TARGET" != "$GITHUB_SHA" ]]; then
+            echo 'Existing version tag points at a different commit; bump VERSION.' >&2
+            exit 1
+          fi
+          gh release upload "$TAG" artifacts/Brief.dmg artifacts/Brief.zip artifacts/SHA256SUMS.txt --clobber
+          gh release edit "$TAG" --target "$GITHUB_SHA" --draft=false --latest

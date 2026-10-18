@@ -67,8 +67,8 @@ def main():
     model = args.model or Path(settings.get("modelDirectory", ""))
     if not (model / "config.json").exists():
         parser.error("Download or select the model in the app first.")
-    app = ROOT / "build/LocalDictation.app/Contents/MacOS"
-    context = subprocess.check_output([str(app / "LocalDictation"), "--recognition-context"], text=True).strip()
+    app = ROOT / "build/Brief.app/Contents/MacOS"
+    context = subprocess.check_output([str(app / "Brief"), "--recognition-context"], text=True).strip()
     report = {"kind": "synthetic integration check", "model_directory": str(model), "context": context,
               "voices": args.voice or ["Karen", "Samantha"], "worker_network_denied": args.deny_network, "results": [],
               "limitations": "Synthetic TTS only. Not a macOS dictation comparison, microphone test, or measure of the user's voice."}

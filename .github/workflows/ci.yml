@@ -1,0 +1,24 @@
+name: Test and package
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ vars.MACOS_RUNNER || 'xcode-27' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: xcodebuild -downloadComponent MetalToolchain
+      - run: swift test
+      - run: ./Scripts/package.sh --unsigned
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-preview
+          path: |
+            dist/Brief-unsigned.dmg
+            dist/Brief-unsigned.zip
+            dist/SHA256SUMS-unsigned.txt
+          if-no-files-found: error

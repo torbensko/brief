@@ -17,10 +17,14 @@ if [ -z "$identity" ]; then
 fi
 swift build -c "$configuration"
 bin_dir="$(swift build -c "$configuration" --show-bin-path)"
-app="$PWD/build/LocalDictation.app"
+app="$PWD/build/Brief.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp Resources/Info.plist "$app/Contents/Info.plist"
-cp "$bin_dir/LocalDictation" "$bin_dir/DictationWorker" "$app/Contents/MacOS/"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(cat VERSION)" "$app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER:-1}" "$app/Contents/Info.plist"
+Scripts/build-icon.sh
+cp build/Brief.icns "$app/Contents/Resources/Brief.icns"
+cp "$bin_dir/Brief" "$bin_dir/DictationWorker" "$app/Contents/MacOS/"
 # SwiftPM dependencies can include resource bundles needed at runtime.
 for bundle in "$bin_dir"/*.bundle; do
     [ -d "$bundle" ] || continue
@@ -33,7 +37,9 @@ if [ -z "$metal_library" ]; then
     exit 1
 fi
 cp "$metal_library" "$app/Contents/Resources/mlx.metallib"
-codesign --force --sign "$identity" "$app/Contents/MacOS/DictationWorker"
-codesign --force --sign "$identity" "$app"
+sign_options=(--force --sign "$identity")
+if [ "${DISTRIBUTION:-0}" = 1 ]; then sign_options+=(--options runtime --timestamp); fi
+codesign "${sign_options[@]}" "$app/Contents/MacOS/DictationWorker"
+codesign "${sign_options[@]}" "$app"
 codesign --verify --deep --strict "$app"
 printf 'Built %s\n' "$app"
