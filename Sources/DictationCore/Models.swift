@@ -76,6 +76,7 @@ public struct DictationSession: Codable, Identifiable, Equatable, Sendable {
     public var attempts: [TranscriptAttempt] = []
     public var editedText: String?
     public var note: String?
+    public var deliveryNote: String?
     public var audioDeleted: Bool = false
     public var duration: Double { sampleRate > 0 ? Double(frameCount) / sampleRate : 0 }
     public var text: String { editedText ?? attempts.last?.text ?? "" }

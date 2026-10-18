@@ -143,6 +143,7 @@ private struct TranscriptDetail: View {
                 badge(session.delivery.label)
                 if session.editedText != nil { badge("Edited") }
             }
+            if let deliveryNote = session.deliveryNote { Text(deliveryNote).font(.callout).textSelection(.enabled) }
             if let note = session.note { Text(note).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
             if let editError { Text(editError).font(.callout).foregroundStyle(.red) }
             TextEditor(text: $draft)

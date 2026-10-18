@@ -55,7 +55,7 @@ struct SettingsView: View {
                 Text("Automatic insertion needs macOS Accessibility access. Microphone access alone only enables recording.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Insert automatically when the original field is unchanged", isOn: $draft.automaticInsertion)
-                Toggle("Use clipboard paste when direct insertion is unavailable", isOn: $draft.allowPasteFallback)
+                Toggle("Use standard paste for insertion (recommended)", isOn: $draft.allowPasteFallback)
                 Text("Paste fallback leaves the transcript on your clipboard. It never presses Return. Delivery is recorded as requested, not confirmed.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Allow insertion into recognised terminal applications", isOn: $draft.allowTerminalApps)

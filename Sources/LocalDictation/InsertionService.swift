@@ -57,7 +57,6 @@ final class InsertionService {
         let value = secure ? nil : attribute(element, kAXValueAttribute) as? String
         let enabled = (attribute(element, kAXEnabledAttribute) as? Bool) ?? true
         let editableFlag = attribute(element, "AXEditable") as? Bool
-        let knownRole = ["AXTextField", "AXTextArea", "AXComboBox"].contains(role)
         var selection: CFRange?
         if !secure, let rawRange = attribute(element, kAXSelectedTextRangeAttribute), CFGetTypeID(rawRange) == AXValueGetTypeID() {
             let rangeValue = unsafeBitCast(rawRange, to: AXValue.self)
@@ -68,9 +67,7 @@ final class InsertionService {
         if let rawWindow = attribute(element, kAXWindowAttribute), CFGetTypeID(rawWindow) == AXUIElementGetTypeID() {
             window = unsafeBitCast(rawWindow, to: AXUIElement.self)
         }
-        // Missing selection means the accessibility provider is not sufficiently clear
-        // for automated delivery. The transcript is still available to copy manually.
-        let editable = !secure && enabled && knownRole && editableFlag != false && selection != nil
+        let editable = TextFieldEligibility.allows(role: role, enabled: enabled, editable: editableFlag, secure: secure)
         return FocusTarget(element: element, window: window, pid: pid,
             application: app.localizedName ?? "Application", bundleID: app.bundleIdentifier ?? "",
             role: role, secure: secure, editable: editable, selection: selection,
@@ -78,10 +75,12 @@ final class InsertionService {
     }
     enum Method { case accessibility, paste }
     func method(for target: FocusTarget, allowPaste: Bool) throws -> Method {
+        // Normal paste works with web editors whose AXSelectedText setter is unreliable.
+        // Choose once, before any mutation; never retry a possibly partial insertion.
+        if allowPaste { return .paste }
         var settable = DarwinBoolean(false)
         let result = AXUIElementIsAttributeSettable(target.element, kAXSelectedTextAttribute as CFString, &settable)
         if result == .success && settable.boolValue { return .accessibility }
-        if allowPaste { return .paste }
         throw DictationError.message("This field needs paste fallback. Enable it in Settings, or copy from History.")
     }
     func insert(_ text: String, into target: FocusTarget, method: Method) throws {

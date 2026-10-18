@@ -53,7 +53,7 @@ No mandatory live transcript, partial-text insertion, rolling transcript correct
 7. Save the completed recognition result before attempting insertion.
 8. Insert only when the captured destination is still suitable and the delivery policy permits it. Otherwise keep the result pending.
 9. A separate configurable shortcut inserts the latest pending result into a field the user deliberately selected.
-10. Show the completed text in a small, non-activating floating card with a quick copy action, even after successful insertion. Recent dictation remains recoverable regardless of delivery outcome, within the selected retention limit.
+10. Show the completed text in a small, non-activating floating card with a quick copy action and explicit delivery outcome, even after successful insertion. Hide it automatically 30 seconds after completion; allow manual reopening for another 30 seconds. Do not automatically display old text at launch. Keep the delivery explanation after copying and in Recent. Recent dictation remains recoverable regardless of delivery outcome, within the selected retention limit.
 
 The floating panel defaults to the top centre of the screen. A visible drag handle lets the user reposition it without taking focus from the destination. Remember its position across recordings and app launches; recover to a visible screen if the saved display is disconnected.
 

@@ -83,7 +83,6 @@ final class AppController: ObservableObject {
                 await self.refreshHistory()
             }
         }
-        if latestTranscript != nil { showOverlay?() }
         scanRepositories(path: settings.effectiveRepositoriesPath)
         do { try hotKeys.register(settings) } catch { report(error) }
         if modelAvailable { warmModel() }
@@ -301,7 +300,10 @@ final class AppController: ObservableObject {
             terminal: insertion.isTerminal(current), allowTerminal: settings.allowTerminalApps,
             requiresReview: session.state == .needsReview))
         guard case .insert = decision, let current else {
-            if case .hold(let reason) = decision { message = "Saved. \(reason)" }
+            if case .hold(let reason) = decision {
+                let detail = current.map { $0.editable ? "" : " Field type: \($0.role.isEmpty ? "unknown" : $0.role)." } ?? " No focused field was identified."
+                await saveDeliveryNote("Not inserted. \(reason)\(detail) Use Copy last text.", for: session.id)
+            }
             return
         }
         do {
@@ -310,15 +312,23 @@ final class AppController: ObservableObject {
             try await store.update(session.id) { $0.delivery = .insertionRequested }
             guard current.matches(insertion.capture()) else {
                 try await store.update(session.id) { $0.delivery = .pending }
-                message = "Saved. Focus changed before insertion."
-                await refreshHistory(); return
+                await saveDeliveryNote("Not inserted: the focused field changed before delivery. Use Copy last text.", for: session.id)
+                return
             }
             try insertion.insert(session.text, into: current, method: method)
             let delivery: DeliveryState = method == .accessibility ? .inserted : .pasteRequested
             try await store.update(session.id) { $0.delivery = delivery }
             stagedSessionID = nil
-            message = method == .accessibility ? "Inserted · saved in History" : "Paste requested · saved in History and clipboard"
-        } catch { message = "Saved. \(error.localizedDescription)" }
+            await saveDeliveryNote(method == .accessibility
+                ? "Text sent through Accessibility to \(current.application). Check the field."
+                : "Paste sent to \(current.application). Check the field; if it is empty, use Copy last text.", for: session.id)
+        } catch { await saveDeliveryNote("Insertion not confirmed: \(error.localizedDescription) Use Copy last text.", for: session.id) }
+        await refreshHistory()
+    }
+    private func saveDeliveryNote(_ note: String, for id: UUID) async {
+        message = note
+        do { try await store.update(id) { $0.deliveryNote = note } }
+        catch { errorMessage = "Could not save delivery status: \(error.localizedDescription)" }
         await refreshHistory()
     }
     func stage(_ id: UUID) {
@@ -341,7 +351,7 @@ final class AppController: ObservableObject {
         do { var updated = settings; updated.recoveryPolicy = policy; try apply(updated) }
         catch { report(error) }
     }
-    func showLatestTranscript() { overlayDismissTask?.cancel(); showOverlay?() }
+    func showLatestTranscript() { showOverlayTemporarily() }
     func copy(_ session: DictationSession) {
         NSPasteboard.general.clearContents()
         guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
@@ -496,9 +506,9 @@ final class AppController: ObservableObject {
     private func showOverlayTemporarily() {
         overlayDismissTask?.cancel(); showOverlay?()
         overlayDismissTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(7)) } catch { return }
+            do { try await Task.sleep(for: .seconds(30)) } catch { return }
             guard let self, self.phase == .idle else { return }
-            if self.latestTranscript == nil { self.hideOverlay?() }
+            self.hideOverlay?()
         }
     }
 }

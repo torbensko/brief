@@ -34,6 +34,10 @@ struct RecordingOverlay: View {
                     .font(.caption).foregroundStyle(.secondary)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
                 Text(latest.text).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                if let note = latest.deliveryNote {
+                    Text(note).font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack {
                     Button("Copy last text", systemImage: "doc.on.doc") { controller.copy(latest) }
                         .buttonStyle(.borderedProminent).controlSize(.small)
@@ -46,7 +50,7 @@ struct RecordingOverlay: View {
             InsertionPermissionNotice(automaticInsertion: controller.settings.automaticInsertion) {
                 controller.showSettings?()
             }
-        }.padding(18).frame(width: 446, height: 232, alignment: .topLeading)
+        }.padding(18).frame(width: 446, height: 290, alignment: .topLeading)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }

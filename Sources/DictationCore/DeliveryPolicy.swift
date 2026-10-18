@@ -42,3 +42,11 @@ public enum DeliveryPolicy {
         return .insert
     }
 }
+
+/// Some browser editors expose a text role but omit AXSelectedTextRange.
+/// Cursor-range availability is useful for change detection, not editability.
+public enum TextFieldEligibility {
+    public static func allows(role: String, enabled: Bool, editable: Bool?, secure: Bool) -> Bool {
+        !secure && enabled && editable != false && ["AXTextField", "AXTextArea", "AXComboBox"].contains(role)
+    }
+}

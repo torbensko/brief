@@ -97,3 +97,15 @@ The 10 safe-delivery tests pass, including the missing-Accessibility gate. App b
 With explicit user authorization, refreshed the macOS permission. The system toggle was on while the app still reported no access. Toggling alone did not resolve the mismatch. Removed the stale LocalDictation entry and re-added the current signed build from build/LocalDictation.app. The running app then visibly reported both Accessibility enabled and Microphone enabled, and the blocked-insertion notice disappeared.
 
 An attempted unsent insertion check in the GPT composer was blocked because Computer Use disallows controlling com.openai.codex. No message was sent and no automated GPT-field insertion result is claimed. The user can now retry with permissions actually recognized by the app.
+
+## Editor delivery and temporary result panel — 19 October 2026
+
+The user's latest failed delivery had ChatGPT recorded as its target, a ready transcript, and automatic insertion/paste enabled. The old transient failure message had been replaced by Copy, so its precise rejection reason was not recoverable. Do not claim a proven root cause beyond these observations.
+
+Removed the requirement that a recognized, enabled, non-secure text editor expose AXSelectedTextRange; several web editors omit this attribute. Known focus/selection/value changes still prevent automatic delivery, and unknown/read-only/secure fields remain blocked. Standard paste is now chosen first when enabled; direct Accessibility insertion is available when paste is disabled. There is no retry after a mutation, preventing duplicate insertion.
+
+Persist a separate delivery explanation on the session, displayed on the result card and in Recent. Copy no longer erases it. Messages distinguish blocked delivery from a paste request, without claiming the receiving app actually accepted the paste.
+
+The result panel now dismisses after 30 seconds even when a transcript exists; reopening starts a fresh timeout. Old text is not shown automatically at launch. Recording and processing remain visible. The isolated preview was visible initially and no window could be inspected after the timeout (the UI inspector timed out); this is consistent with hiding, but not a precise timing measurement. Normal app reopened afterwards.
+
+60 tests pass in nine suites, including recognized text editors, blocked unsafe targets, and delivery-explanation persistence after copying. Packaging/signature checks and the MLX self-test pass. Actual insertion into GPT remains unverified because computer-use access to that app is prohibited; the next user attempt now supplies a durable delivery explanation.
