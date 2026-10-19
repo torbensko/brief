@@ -11,6 +11,7 @@ final class AppController: ObservableObject {
     @Published private(set) var settings: AppSettings
     @Published var message = "Ready to record"
     @Published var errorMessage: String?
+    @Published private(set) var noSpeechDetected = false
     @Published private(set) var historyWarnings: [String] = []
     @Published private(set) var elapsed: Double = 0
     @Published private(set) var levels = [Float](repeating: 0.03, count: 28)
@@ -153,6 +154,7 @@ final class AppController: ObservableObject {
         }
     }
     private func startRecording() async {
+        noSpeechDetected = false
         do {
             guard await AudioRecorder.requestPermission() else {
                 throw DictationError.message("Microphone permission is required. Enable Brief under System Settings → Privacy & Security → Microphone.")
@@ -245,6 +247,7 @@ final class AppController: ObservableObject {
         }
     }
     private func transcribeSession(_ session: DictationSession, automaticInsertion: Bool) async {
+        noSpeechDetected = false
         defer { phase = .idle; activeSessionID = nil; stopTicker(); endActivity(); Task { await refreshHistory() } }
         do {
             guard modelAvailable else {
@@ -263,6 +266,12 @@ final class AppController: ObservableObject {
             try await store.appendAttempt(attempt, to: session.id)
             await refreshHistory()
             selectedSessionID = session.id
+            if attempt.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                noSpeechDetected = true
+                message = "No speech detected · nothing inserted"
+                showOverlayTemporarily()
+                return
+            }
             message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
             if automaticInsertion, let saved = sessions.first(where: { $0.id == session.id }) {
                 await deliver(saved, automatic: true)
@@ -351,7 +360,7 @@ final class AppController: ObservableObject {
         do { var updated = settings; updated.recoveryPolicy = policy; try apply(updated) }
         catch { report(error) }
     }
-    func showLatestTranscript() { showOverlayTemporarily() }
+    func showLatestTranscript() { noSpeechDetected = false; showOverlayTemporarily() }
     func copy(_ session: DictationSession) {
         NSPasteboard.general.clearContents()
         guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }

@@ -1,13 +1,14 @@
 import Foundation
 
 public enum CaptureState: String, Codable, Sendable, CaseIterable {
-    case recording, captured, transcribing, ready, needsReview, failed, interrupted
+    case recording, captured, transcribing, ready, needsReview, failed, interrupted, noSpeech
     public var label: String {
         switch self {
         case .recording: return "Recording"
         case .captured: return "Audio saved"
         case .transcribing: return "Transcribing"
         case .ready: return "Ready"
+        case .noSpeech: return "No speech detected"
         case .needsReview: return "Review needed"
         case .failed: return "Retry needed"
         case .interrupted: return "Recovered recording"

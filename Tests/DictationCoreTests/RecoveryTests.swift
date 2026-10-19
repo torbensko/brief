@@ -65,3 +65,28 @@ import Testing
         #expect(CodingVocabulary.detect(in: root) == ["Swift", "TypeScript"])
     }
 }
+
+@Suite("Empty dictation") struct EmptyDictationTests {
+    @Test func emptyAttemptCannotBeDeliveredAndKeepsPriorRecovery() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = try HistoryStore(root: root)
+        let previous = DictationSession(date: Date().addingTimeInterval(-10), sampleRate: 16_000, profileName: "test", vocabulary: "Blint")
+        let empty = DictationSession(sampleRate: 16_000, profileName: "test", vocabulary: "Blint, JSON")
+        try await store.create(previous)
+        try await store.create(empty)
+        func attempt(_ text: String) -> TranscriptAttempt {
+            TranscriptAttempt(text: text, model: "test", vocabulary: "Blint, JSON", processingSeconds: 1, audioSeconds: 3, generationTokens: 1)
+        }
+        try await store.appendAttempt(attempt("Blint"), to: previous.id)
+        try await store.appendAttempt(attempt(" \n"), to: empty.id)
+        let saved = try await store.snapshot().sessions.first { $0.id == empty.id }!
+        #expect(saved.state == .noSpeech)
+        #expect(saved.delivery == .dismissed)
+        #expect(!saved.canInsert)
+        try await store.prune(RecoveryPolicy(), protecting: [previous.id])
+        let retained = try await store.snapshot().sessions
+        #expect(retained.first(where: { $0.canInsert })?.text == "Blint")
+        #expect(retained.contains(where: { $0.id == empty.id }))
+    }
+}

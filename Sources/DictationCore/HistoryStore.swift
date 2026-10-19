@@ -86,8 +86,11 @@ public actor HistoryStore {
         _ = try update(id) { session in
             session.attempts.append(attempt)
             session.editedText = nil
-            session.state = attempt.warnings.isEmpty && !attempt.text.isEmpty ? .ready : .needsReview
-            session.delivery = .pending
+            let empty = attempt.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            session.state = empty && attempt.warnings.isEmpty ? .noSpeech :
+                (attempt.warnings.isEmpty ? .ready : .needsReview)
+            session.delivery = empty ? .dismissed : .pending
+            session.deliveryNote = nil
             session.note = attempt.warnings.isEmpty ? nil : attempt.warnings.joined(separator: "\n")
         }
     }

@@ -81,6 +81,8 @@ Ordinary several-minute dictations should be transcribed as completed recordings
 
 Internal offline batching is permitted only where a verified model/runtime limit requires it. It must be invisible to the normal recording interaction. Account for every sample, choose boundaries carefully, and test omissions/duplication around joins. A sample-coverage test alone does not demonstrate word-level completeness.
 
+Silence or audio with no recognised speech must produce no inserted text, even when project and coding hints are available. Establish speech using an unhinted recognition pass before applying vocabulary context to the original audio. An empty result leaves the clipboard and focused field untouched, shows “No speech detected”, and preserves the previous usable recovery entry. Do not reject legitimate spoken project names merely because they match vocabulary hints.
+
 Never silently truncate input to a duration cap or output to a fixed short token budget. Detect and surface known token-budget exhaustion, empty output, malformed output, processing failures, and incomplete batch execution. Retain audio and allow retry. A warning must prevent automatic insertion until reviewed. Absence of a warning does not prove the recogniser captured every word.
 
 Use deterministic/conservative decoding initially. Record the actual model identity/revision, vocabulary context, language, processing duration, warnings, and inference settings relevant to reproducibility.

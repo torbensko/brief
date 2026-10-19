@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import random
 import re
 import subprocess
 import sys
@@ -60,6 +61,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--voice", action="append", default=[])
     parser.add_argument("--include-long", action="store_true")
+    parser.add_argument("--include-silence", action="store_true", help="Check silence, noise, clicks, and short spoken coding terms")
     parser.add_argument("--deny-network", action="store_true", help="Deny all worker networking with the macOS process sandbox")
     parser.add_argument("--mode", action="append", choices=["without_context", "project_names_only", "app_context"])
     args = parser.parse_args()
@@ -80,6 +82,10 @@ def main():
                 seen.add(name.lower()); names.append(name)
     contexts = {"without_context": "", "project_names_only": ", ".join(names), "app_context": context}
     cases = CASES + ([("long_specification", LONG, ["Blint", "JSON", "Jason", "TypeScript", "Swift", "recovery check is complete"])] if args.include_long else [])
+    if args.include_silence:
+        cases += [("silence", "", []), ("noise", "", []), ("click", "", []),
+                  ("single_project", "Blint", ["Blint"]), ("single_term", "JSON", ["JSON"]),
+                  ("quiet_speech", "In Blint, save the specification as a JSON document.", ["Blint", "JSON"])]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     def save():
         args.output.write_text(json.dumps(report, indent=2) + "\n")
@@ -103,12 +109,21 @@ def main():
                 for name, reference, expected in cases:
                     wav = Path(temp) / "speech.wav"
                     pcm = Path(temp) / "speech.f32le"
-                    subprocess.run(["say", "-v", voice, "-r", "155", "-o", str(wav), "--file-format=WAVE", "--data-format=LEI16@22050", reference], check=True)
-                    with wave.open(str(wav)) as audio:
-                        assert audio.getnchannels() == 1 and audio.getsampwidth() == 2
-                        rate = audio.getframerate()
-                        samples = array.array("h", audio.readframes(audio.getnframes()))
-                    floats = array.array("f", (x / 32768.0 for x in samples))
+                    if not reference:
+                        rate = 16000
+                        rng = random.Random(8)
+                        floats = array.array("f", (rng.uniform(-0.002, 0.002) if name == "noise" else 0.0 for _ in range(rate * 3)))
+                        if name == "click":
+                            floats[rate] = 0.5
+                    else:
+                        subprocess.run(["say", "-v", voice, "-r", "155", "-o", str(wav), "--file-format=WAVE", "--data-format=LEI16@22050", reference], check=True)
+                        with wave.open(str(wav)) as audio:
+                            assert audio.getnchannels() == 1 and audio.getsampwidth() == 2
+                            rate = audio.getframerate()
+                            samples = array.array("h", audio.readframes(audio.getnframes()))
+                        floats = array.array("f", (x / 32768.0 for x in samples))
+                    if name == "quiet_speech":
+                        floats = array.array("f", (x * 0.02 for x in floats))
                     pcm.write_bytes(floats.tobytes())
                     for label in args.mode or ["without_context", "project_names_only", "app_context"]:
                         hint = contexts[label]
@@ -131,6 +146,8 @@ def main():
                                       word_error_rate=distance(words(reference), words(text)) / max(1, len(words(reference))),
                                       elapsed_seconds=time.monotonic() - start, attempt=attempt)
                         report["results"].append(result); save()
+                        if not reference and text.strip():
+                            raise AssertionError(f"{name} produced text: {text!r}")
                         print(json.dumps({k: result[k] for k in ["case", "voice", "mode", "transcript", "expected_terms", "word_error_rate", "elapsed_seconds"]}), flush=True)
         finally:
             proc.terminate()

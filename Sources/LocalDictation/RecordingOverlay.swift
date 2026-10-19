@@ -6,9 +6,14 @@ struct RecordingOverlay: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: controller.phase == .recording ? "mic.fill" : "waveform")
-                    .foregroundStyle(controller.phase == .recording ? Color.red : Color.accentColor)
-                Text(controller.phase == .recording ? "Recording" : "Brief").font(.headline)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable().scaledToFit().frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
+                Text("Brief").font(.headline)
+                if controller.phase == .recording {
+                    Label("Recording", systemImage: "mic.fill")
+                        .font(.caption).foregroundStyle(.red)
+                }
                 Spacer()
                 if controller.phase == .recording {
                     Text(duration(controller.elapsed)).font(.body.monospacedDigit())
@@ -32,6 +37,8 @@ struct RecordingOverlay: View {
                 }.frame(height: 30).frame(maxWidth: .infinity)
                 Text("\(controller.recordingFinishHint) · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
+            } else if controller.phase == .idle, controller.noSpeechDetected {
+                Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
                 Text(latest.text).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
                 if let note = latest.deliveryNote {

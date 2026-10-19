@@ -85,15 +85,27 @@ private final class LocalEngine {
             let seconds = Double(range.count) / 16_000
             let budget = BatchPlanner.tokenBudget(seconds: seconds, multiplier: request.tokenBudgetMultiplier)
             let audio = MLXArray(Array(samples[range]))
-            // Call the Qwen-specific overload: the generic STT interface discards context.
-            // Each offline batch has its OWN budget; the upstream multi-batch budget is shared.
-            let result = model.generate(audio: audio, maxTokens: budget, temperature: 0,
-                                        context: request.context,
-                                        language: request.language.isEmpty ? nil : request.language,
-                                        chunkDuration: Float(seconds + 1), minChunkDuration: 1,
-                                        repetitionPenalty: 1.0)
+            // Establish speech from the audio alone. On silence, supplying the dictionary
+            // can make Qwen recite it verbatim. Automatic language detection also allows
+            // the model to choose its no-speech response instead of forcing English.
+            let unhinted = model.generate(audio: audio, maxTokens: budget, temperature: 0,
+                                          context: "", language: nil,
+                                          chunkDuration: Float(seconds + 1), minChunkDuration: 1,
+                                          repetitionPenalty: 1.0)
+            generated += unhinted.generationTokens
+            guard !unhinted.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                Memory.clearCache()
+                continue
+            }
+            // Hints still guide recognition of the original audio, never text replacement.
+            let result = request.context.isEmpty && request.language.isEmpty ? unhinted :
+                model.generate(audio: audio, maxTokens: budget, temperature: 0,
+                               context: request.context,
+                               language: request.language.isEmpty ? nil : request.language,
+                               chunkDuration: Float(seconds + 1), minChunkDuration: 1,
+                               repetitionPenalty: 1.0)
             texts.append(result.text)
-            generated += result.generationTokens
+            if !request.context.isEmpty || !request.language.isEmpty { generated += result.generationTokens }
             warnings += TranscriptChecks.warnings(text: result.text, generatedTokens: result.generationTokens,
                                                    tokenBudget: budget).map { "Part \(index + 1): \($0)" }
             Memory.clearCache()

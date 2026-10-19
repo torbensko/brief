@@ -47,3 +47,13 @@ Raw reports stay under ignored `.build/`: they contain local paths and the compl
 ## Still to verify
 
 Real microphone speech, pauses/noise/accents, longer recordings beyond this approximately 100-second sample, and a matched comparison against macOS dictation remain untested. Physical shortcuts, permission handling, waveform activity, and delivery/focus recovery in Blint also require an actual end-to-end session. No microphone or Accessibility permission was granted by this evaluation.
+
+## Empty-audio regression (19 October 2026)
+
+The reported vocabulary dump was reproduced with the installed BF16 model: three seconds of digital silence or seeded low-level white noise returned the supplied dictionary when hints were enabled, but returned empty text with no hints and automatic language detection.
+
+The worker now first recognises each complete audio batch without hints and with automatic language detection. Only a non-empty result allows a second recognition pass with the user's vocabulary and language. Hints still influence audio interpretation; there is no keyword deletion or text replacement. This costs an additional recognition pass and is not a guarantee against every possible hallucination.
+
+The expanded synthetic check (`--include-silence`) covers silence, noise, a single click, isolated project/coding terms, and quiet speech. With network access denied, both Karen and Samantha runs returned empty text for the three non-speech fixtures and retained spoken “Blint”. The original six specification cases retained their expected terms for both voices. Samantha's quiet sentence, attenuated to 2% amplitude, retained Blint and JSON. Isolated JSON was recognised with Samantha, but Karen's pronunciation was transcribed as Jason; that ambiguity remains and is not rewritten automatically. No real microphone recording was made for this check.
+
+An empty attempt is saved as “No speech detected”, cannot be inserted, and does not displace the previous usable recovery entry. The overlay shows that outcome instead of presenting an older result as the new dictation.

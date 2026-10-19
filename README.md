@@ -58,7 +58,7 @@ Audio, transcripts, settings, and downloaded weights live in `~/Library/Applicat
 
 Settings → Recognition scans `~/repos` at launch and keeps a short list of main project names, such as Blint and BuildIQ. It reads root project metadata and short README titles, uses the folder name as a fallback, and combines duplicate Git worktrees. Names from all projects are available together.
 
-The current scanner does not collect dependencies, internal package names, or source symbols. A small curated coding vocabulary and broad project-type detection complement this name dictionary; they are not a dependency index. Optional user-entered spellings are preserved. The dictionary guides recognition; it does not perform automatic word replacement or guarantee a particular transcription.
+The current scanner does not collect dependencies, internal package names, or source symbols. A small curated coding vocabulary and broad project-type detection complement this name dictionary; they are not a dependency index. Optional user-entered spellings are preserved. The dictionary guides recognition; it does not perform automatic word replacement or guarantee a particular transcription. Brief first checks the audio without hints; if no speech is recognised, it inserts nothing. Spoken audio is then recognised with the vocabulary, trading an extra processing pass for protection against the model reciting hints over silence.
 
 Scans stay local and results are cached in Application Support. Older broad scan caches are excluded until refreshed. Existing recordings retain their original vocabulary snapshot unless explicitly retranscribed with current vocabulary.
 
