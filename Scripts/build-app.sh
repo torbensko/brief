@@ -40,6 +40,6 @@ cp "$metal_library" "$app/Contents/Resources/mlx.metallib"
 sign_options=(--force --sign "$identity")
 if [ "${DISTRIBUTION:-0}" = 1 ]; then sign_options+=(--options runtime --timestamp); fi
 codesign "${sign_options[@]}" "$app/Contents/MacOS/DictationWorker"
-codesign "${sign_options[@]}" "$app"
+codesign "${sign_options[@]}" --entitlements Resources/Brief.entitlements "$app"
 codesign --verify --deep --strict "$app"
 printf 'Built %s\n' "$app"

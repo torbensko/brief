@@ -20,7 +20,7 @@ After setting the secrets, run **Build and release** manually from Actions. Set 
 
 The default runner is `xcode-27`, the GitHub image with Xcode 27 and Swift 6.4 required by the verified MLX/Metal packaging path. `MACOS_RUNNER` can select another Apple Silicon runner with that toolchain. Both workflows install the Metal Toolchain component. The release is arm64 only, with a macOS 14 deployment target; Intel is unsupported.
 
-The workflow signs the worker and app with hardened runtime, notarises and staples the app, creates a DMG with an Applications shortcut, notarises/staples the DMG, and publishes only after all steps succeed. An unsigned preview is available as a CI artifact and is clearly named as such.
+The workflow signs the worker and app with hardened runtime, grants the app the audio-input entitlement required for microphone capture, notarises and staples the app, creates a DMG with an Applications shortcut, notarises/staples the DMG, and publishes only after all steps succeed. An unsigned preview is available as a CI artifact and is clearly named as such.
 
 ## Local checks
 
