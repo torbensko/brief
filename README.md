@@ -89,6 +89,6 @@ The imported folder had no Git history. A new repository has been initialized he
 
 ## Releases
 
-See [publishing Brief](Documentation/RELEASING.md) for GitHub Actions signing secrets, notarisation, and packaging. The first public version is 1.0.0. Signed downloads are published only after release signing is configured.
+See [publishing Brief](Documentation/RELEASING.md) for GitHub Actions signing secrets, notarisation, and packaging. The first public version is 1.0.0. [Download Brief for Apple Silicon](https://github.com/torbensko/brief/releases/latest/download/Brief.dmg), or see the [latest release](https://github.com/torbensko/brief/releases/latest) for the ZIP and checksums. Release downloads are signed and notarised.
 
 The app is now named Brief; its bundle identifier and Application Support directory retain the original LocalDictation name to preserve settings and model downloads.
