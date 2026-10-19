@@ -6,6 +6,18 @@ Local, coding-centric dictation for macOS. Speak your next brief.
 
 Local, coding-centric macOS dictation for speaking high-level specifications and documentation to coding agents. The intended experience is like speaking with another coder who knows your terms and projects.
 
+## A look at Brief
+
+The floating panel shows your last dictation, its delivery status, and a quick way to copy the text if you need it.
+
+![Brief’s floating panel with a completed dictation and Copy last text button](Documentation/Images/brief-screenshot.jpg)
+
+Settings bring recording, insertion permissions, and local storage together.
+
+<img src="Documentation/Images/brief-settings.jpg" width="670" alt="Brief settings showing microphone and Accessibility permissions and automatic insertion options">
+
+*These screenshots show the app under its earlier name, LocalDictation.*
+
 ## Product intent — read before changing the app
 
 - **Quality first:** aim for less correction than default macOS dictation. Model size, speed, memory use, and real-time feedback are secondary to faithful, complete output.
