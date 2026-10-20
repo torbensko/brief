@@ -58,7 +58,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     try? await controller.store.appendAttempt(TranscriptAttempt(text: "In Blint, let the agent save the specification as a JSON document. Do not delete the existing file.", model: "UI preview — not a recognition result", vocabulary: "Blint, JSON", processingSeconds: 0, audioSeconds: 0, generationTokens: 0), to: session.id)
                     await controller.refreshHistory()
                     if !CommandLine.arguments.contains("--preview-card") { self.showHistory() }
-                    controller.showLatestTranscript()
+                    // Keep the synthetic preview visible for layout and drag inspection.
+                    self.showOverlay()
                 } else {
                     await controller.bootstrap()
                     if CommandLine.arguments.contains("--show-settings") { self.showSettings() }

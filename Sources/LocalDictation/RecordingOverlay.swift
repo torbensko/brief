@@ -148,13 +148,13 @@ private final class PanelGrip: NSView {
         NSBezierPath(roundedRect: NSRect(x: bounds.midX - 24, y: bounds.midY - 2, width: 48, height: 4), xRadius: 2, yRadius: 2).fill()
     }
     override func mouseDown(with event: NSEvent) {
-        dragStart = NSEvent.mouseLocation
+        dragStart = window?.convertPoint(toScreen: event.locationInWindow)
         windowStart = window?.frame.origin
         NSCursor.closedHand.push()
     }
     override func mouseDragged(with event: NSEvent) {
         guard let start = dragStart, let origin = windowStart else { return }
-        let now = NSEvent.mouseLocation
+        guard let now = window?.convertPoint(toScreen: event.locationInWindow) else { return }
         window?.setFrameOrigin(NSPoint(x: origin.x + now.x - start.x, y: origin.y + now.y - start.y))
         (window as? RecordingPanel)?.rememberDraggedPosition()
     }
