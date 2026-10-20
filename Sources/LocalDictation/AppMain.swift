@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var historyWindow: NSWindow?
     private var settingsWindow: NSWindow?
     private var overlay: RecordingPanel?
+    private var overlayPresentation = 0
     private var terminating = false
     private var previewRoot: URL?
 
@@ -41,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             controller.showHistory = { [weak self] in self?.showHistory() }
             controller.showSettings = { [weak self] in self?.showSettings() }
             controller.showOverlay = { [weak self] in self?.showOverlay() }
+            controller.fadeOverlay = { [weak self] in self?.fadeOverlay() }
             controller.hideOverlay = { [weak self] in self?.overlay?.orderOut(nil) }
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Brief")
@@ -166,12 +168,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if overlay == nil {
             let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 228),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            panel.restorePosition()
             panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller) { [weak panel] height in
-                guard let panel, height > 0, abs(panel.frame.height - height) > 1 else { return }
-                var frame = panel.frame
-                frame.origin.y += frame.height - height
-                frame.size = NSSize(width: 446, height: height)
-                panel.setFrame(frame, display: true)
+                panel?.resizeToContent(height)
             })
             panel.title = "Latest dictation"
             panel.isOpaque = false
@@ -179,21 +178,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             panel.level = .floating
             panel.hidesOnDeactivate = false
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-            if !panel.setFrameUsingName("DictationFloatingPanel"), let screen = NSScreen.main {
-                let frame = screen.visibleFrame
-                panel.setFrameOrigin(NSPoint(x: frame.midX - panel.frame.width / 2, y: frame.maxY - panel.frame.height - 24))
-            }
             overlay = panel
         }
-        if let screen = NSScreen.main, let overlay {
-            // Recover a saved position if its display was disconnected.
-            if !NSScreen.screens.contains(where: { $0.visibleFrame.contains(overlay.frame) }) {
-                let frame = screen.visibleFrame
-                overlay.setFrameOrigin(NSPoint(x: frame.midX - overlay.frame.width / 2, y: frame.maxY - overlay.frame.height - 24))
-            }
+        if let overlay {
+            overlayPresentation += 1
+            overlay.alphaValue = 1
+            overlay.resizeToContent(overlay.frame.height)
             overlay.orderFrontRegardless()
         }
     }
+    private func fadeOverlay() {
+        guard let overlay else { return }
+        let presentation = overlayPresentation
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            overlay.animator().alphaValue = 0
+        } completionHandler: { [weak self, weak overlay] in
+            guard let self, self.overlayPresentation == presentation else { return }
+            overlay?.orderOut(nil)
+            overlay?.alphaValue = 1
+        }
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating, let controller else { return .terminateNow }
         terminating = true

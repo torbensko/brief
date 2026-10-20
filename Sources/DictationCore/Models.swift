@@ -17,12 +17,13 @@ public enum CaptureState: String, Codable, Sendable, CaseIterable {
 }
 
 public enum DeliveryState: String, Codable, Sendable {
-    case pending, insertionRequested, inserted, pasteRequested, copied, dismissed
+    case pending, insertionRequested, inserted, pasteRequested, confirmed, copied, dismissed
     public var label: String {
         switch self {
         case .pending: return "Pending"
         case .insertionRequested: return "Insertion requested — check destination"
         case .inserted: return "Inserted via Accessibility"
+        case .confirmed: return "Insertion verified"
         case .pasteRequested: return "Paste requested (not verified)"
         case .copied: return "Copied"
         case .dismissed: return "Archived"

@@ -211,3 +211,9 @@ Document remaining limitations and failed checks plainly. Report actual file loc
 New, non-empty dictations copy their complete text to the clipboard by default, independently of whether automatic insertion is enabled, permitted, or successful. Settings must expose an automatic-copy toggle and permit clipboard-only use. Empty results and history retranscriptions leave the clipboard unchanged. Clipboard copy does not imply that a target field received text.
 
 The floating recovery panel sizes to its content, caps the transcript area's height, and allows scrolling through the complete text. Show delivery feedback once, preserve the panel's top edge when its height changes, and retain the existing temporary visibility and draggable positioning.
+
+### Delivery acknowledgement and panel placement
+
+Show a green tick for one second and fade out only after reading back the expected destination-field contents. A successful Accessibility call or posted paste event alone is not proof of insertion. If the field cannot be verified, retain the recovery panel for five seconds; copied text and Recent remain available afterwards. Manual reopening also lasts five seconds.
+
+The drag handle must offer a generous clickable area and save the panel's top-left anchor, independently of its changing height. Resizing must not overwrite the user's chosen anchor or recenter the panel. Clamp it to a connected display if needed. Close and Recent use native Liquid Glass controls on supported macOS versions with bordered controls on older versions.

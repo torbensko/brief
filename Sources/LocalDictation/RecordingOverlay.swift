@@ -25,11 +25,13 @@ struct RecordingOverlay: View {
                     ProgressView().controlSize(.small)
                     Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
                 } else if controller.phase == .idle {
-                    Button("Recent") { controller.showHistory?() }.controlSize(.small)
-                    Button { controller.hideOverlay?() } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+                    Button("Recent") { controller.showHistory?() }.modifier(PanelButtonStyle()).controlSize(.small)
+                    Button { controller.hideOverlay?() } label: { Image(systemName: "xmark").frame(width: 20, height: 20) }
+                        .modifier(PanelButtonStyle()).help("Close")
+                        .accessibilityLabel("Close dictation panel")
                 }
             }
-            PanelDragHandle().frame(height: 10).help("Drag to move this panel")
+            PanelDragHandle().frame(width: 410, height: 24).help("Drag to move this panel")
             if controller.phase == .recording {
                 HStack(alignment: .center, spacing: 4) {
                     ForEach(Array(controller.levels.enumerated()), id: \.offset) { _, level in
@@ -38,6 +40,11 @@ struct RecordingOverlay: View {
                 }.frame(height: 30).frame(maxWidth: .infinity)
                 Text("\(controller.recordingFinishHint) · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
+            } else if controller.phase == .idle, controller.deliveryConfirmed {
+                Label(controller.message, systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(.green)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
             } else if controller.phase == .idle, controller.noSpeechDetected {
                 Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
@@ -90,6 +97,37 @@ private struct PanelHeightKey: PreferenceKey {
 final class RecordingPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+    private var anchor: NSPoint?
+    private let anchorKey = "BriefPanelTopLeft"
+    func restorePosition() {
+        let saved = UserDefaults.standard.array(forKey: anchorKey) as? [Double]
+        if let saved, saved.count == 2 { anchor = NSPoint(x: saved[0], y: saved[1]) }
+        if anchor == nil, let screen = NSScreen.main {
+            anchor = NSPoint(x: screen.visibleFrame.midX - 223, y: screen.visibleFrame.maxY - 24)
+        }
+        resizeToContent(frame.height)
+    }
+    func resizeToContent(_ height: CGFloat) {
+        guard height > 0, var top = anchor else { return }
+        let screen = NSScreen.screens.first { $0.visibleFrame.contains(NSPoint(x: top.x + 223, y: top.y - 1)) } ?? NSScreen.main
+        if let visible = screen?.visibleFrame {
+            top.x = max(visible.minX, min(top.x, visible.maxX - 446))
+            top.y = min(visible.maxY, max(top.y, visible.minY + height))
+        }
+        // Clamping a taller card must not change the user's saved anchor.
+        setFrame(NSRect(x: top.x, y: top.y - height, width: 446, height: height), display: true)
+    }
+    func rememberDraggedPosition() {
+        anchor = NSPoint(x: frame.minX, y: frame.maxY)
+        UserDefaults.standard.set([Double(frame.minX), Double(frame.maxY)], forKey: anchorKey)
+    }
+}
+
+private struct PanelButtonStyle: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) { content.buttonStyle(.glass) }
+        else { content.buttonStyle(.bordered) }
+    }
 }
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -101,14 +139,29 @@ private struct PanelDragHandle: NSViewRepresentable {
     func updateNSView(_ nsView: PanelGrip, context: Context) {}
 }
 private final class PanelGrip: NSView {
+    private var dragStart: NSPoint?
+    private var windowStart: NSPoint?
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         NSColor.secondaryLabelColor.withAlphaComponent(0.5).setFill()
         NSBezierPath(roundedRect: NSRect(x: bounds.midX - 24, y: bounds.midY - 2, width: 48, height: 4), xRadius: 2, yRadius: 2).fill()
     }
     override func mouseDown(with event: NSEvent) {
-        window?.performDrag(with: event)
-        if let window { window.saveFrame(usingName: "DictationFloatingPanel") }
+        dragStart = NSEvent.mouseLocation
+        windowStart = window?.frame.origin
+        NSCursor.closedHand.push()
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard let start = dragStart, let origin = windowStart else { return }
+        let now = NSEvent.mouseLocation
+        window?.setFrameOrigin(NSPoint(x: origin.x + now.x - start.x, y: origin.y + now.y - start.y))
+        (window as? RecordingPanel)?.rememberDraggedPosition()
+    }
+    override func mouseUp(with event: NSEvent) {
+        (window as? RecordingPanel)?.rememberDraggedPosition()
+        dragStart = nil; windowStart = nil
+        NSCursor.pop()
     }
 }
 

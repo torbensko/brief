@@ -12,6 +12,7 @@ final class AppController: ObservableObject {
     @Published var message = "Ready to record"
     @Published var errorMessage: String?
     @Published private(set) var noSpeechDetected = false
+    @Published private(set) var deliveryConfirmed = false
     @Published private(set) var historyWarnings: [String] = []
     @Published private(set) var elapsed: Double = 0
     @Published private(set) var levels = [Float](repeating: 0.03, count: 28)
@@ -25,6 +26,7 @@ final class AppController: ObservableObject {
     var showSettings: (() -> Void)?
     var showOverlay: (() -> Void)?
     var hideOverlay: (() -> Void)?
+    var fadeOverlay: (() -> Void)?
     var settingsDidChange: (() -> Void)?
     let root: URL
     let store: HistoryStore
@@ -155,6 +157,7 @@ final class AppController: ObservableObject {
     }
     private func startRecording() async {
         noSpeechDetected = false
+        deliveryConfirmed = false
         do {
             guard await AudioRecorder.requestPermission() else {
                 throw DictationError.message("Microphone permission is required. Enable Brief under System Settings → Privacy & Security → Microphone.")
@@ -248,6 +251,7 @@ final class AppController: ObservableObject {
     }
     private func transcribeSession(_ session: DictationSession, automaticInsertion: Bool) async {
         noSpeechDetected = false
+        deliveryConfirmed = false
         defer { phase = .idle; activeSessionID = nil; stopTicker(); endActivity(); Task { await refreshHistory() } }
         do {
             guard modelAvailable else {
@@ -308,6 +312,7 @@ final class AppController: ObservableObject {
         }
     }
     private func deliver(_ session: DictationSession, automatic: Bool, alreadyCopied: Bool = false) async {
+        deliveryConfirmed = false
         let recovery = alreadyCopied ? "Text is on the clipboard · press ⌘V to paste." : "Use Copy last text."
         guard session.canInsert else { return }
         let current = insertion.capture()
@@ -333,10 +338,17 @@ final class AppController: ObservableObject {
                 await saveDeliveryNote("Not inserted: the focused field changed before delivery. \(recovery)", for: session.id)
                 return
             }
+            let expected = insertion.expectedValue(for: current, text: session.text)
             try insertion.insert(session.text, into: current, method: method)
             let delivery: DeliveryState = method == .accessibility ? .inserted : .pasteRequested
             try await store.update(session.id) { $0.delivery = delivery }
             stagedSessionID = nil
+            deliveryConfirmed = await insertion.verifyInsertion(into: current, expected: expected)
+            if deliveryConfirmed {
+                try await store.update(session.id) { $0.delivery = .confirmed }
+                await saveDeliveryNote("Inserted into \(current.application)", for: session.id)
+                return
+            }
             await saveDeliveryNote(method == .accessibility
                 ? "Text sent through Accessibility to \(current.application). Check the field."
                 : "Paste sent to \(current.application). Text is on the clipboard if you need to paste again with ⌘V.", for: session.id)
@@ -369,7 +381,7 @@ final class AppController: ObservableObject {
         do { var updated = settings; updated.recoveryPolicy = policy; try apply(updated) }
         catch { report(error) }
     }
-    func showLatestTranscript() { noSpeechDetected = false; showOverlayTemporarily() }
+    func showLatestTranscript() { noSpeechDetected = false; deliveryConfirmed = false; showOverlayTemporarily() }
     func copy(_ session: DictationSession) {
         NSPasteboard.general.clearContents()
         guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
@@ -524,9 +536,9 @@ final class AppController: ObservableObject {
     private func showOverlayTemporarily() {
         overlayDismissTask?.cancel(); showOverlay?()
         overlayDismissTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(30)) } catch { return }
+            do { try await Task.sleep(for: .seconds(self?.deliveryConfirmed == true ? 1 : 5)) } catch { return }
             guard let self, self.phase == .idle else { return }
-            self.hideOverlay?()
+            if let fade = self.fadeOverlay { fade() } else { self.hideOverlay?() }
         }
     }
 }

@@ -114,6 +114,24 @@ final class InsertionService {
             // Deliberately no Return/Enter event.
         }
     }
+    func expectedValue(for target: FocusTarget, text: String) -> String? {
+        guard !target.secure, let selection = target.selection,
+              let before = attribute(target.element, kAXValueAttribute) as? String else { return nil }
+        return InsertionVerification.expectedValue(before: before, location: selection.location,
+                                                   length: selection.length, text: text)
+    }
+    func verifyInsertion(into target: FocusTarget, expected: String?) async -> Bool {
+        guard expected != nil else { return false }
+        // Some editors apply paste asynchronously. Never insert a second time while checking.
+        for _ in 0..<4 {
+            do { try await Task.sleep(for: .milliseconds(150)) } catch { return false }
+            guard let current = capture(), !current.secure, current.pid == target.pid,
+                  CFEqual(current.element, target.element) else { return false }
+            let actual = attribute(target.element, kAXValueAttribute) as? String
+            if InsertionVerification.confirms(expected: expected, actual: actual) { return true }
+        }
+        return false
+    }
     private func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
         var result: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &result) == .success else { return nil }
