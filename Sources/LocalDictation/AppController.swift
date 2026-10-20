@@ -273,8 +273,16 @@ final class AppController: ObservableObject {
                 return
             }
             message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
-            if automaticInsertion, let saved = sessions.first(where: { $0.id == session.id }) {
-                await deliver(saved, automatic: true)
+            var copied = false
+            if settings.shouldCopyTranscript(attempt.text, newRecording: automaticInsertion) {
+                NSPasteboard.general.clearContents()
+                copied = NSPasteboard.general.setString(attempt.text, forType: .string)
+                await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
+                    : "Could not copy automatically. Use Copy last text.", for: session.id)
+            }
+            if automaticInsertion && settings.automaticInsertion,
+               let saved = sessions.first(where: { $0.id == session.id }) {
+                await deliver(saved, automatic: true, alreadyCopied: copied)
             }
             showOverlayTemporarily()
         } catch {
@@ -299,7 +307,8 @@ final class AppController: ObservableObject {
             phase = .idle; showOverlayTemporarily()
         }
     }
-    private func deliver(_ session: DictationSession, automatic: Bool) async {
+    private func deliver(_ session: DictationSession, automatic: Bool, alreadyCopied: Bool = false) async {
+        let recovery = alreadyCopied ? "Text is on the clipboard · press ⌘V to paste." : "Use Copy last text."
         guard session.canInsert else { return }
         let current = insertion.capture()
         let decision = DeliveryPolicy.decide(DeliveryConditions(automatic: automatic,
@@ -311,7 +320,7 @@ final class AppController: ObservableObject {
         guard case .insert = decision, let current else {
             if case .hold(let reason) = decision {
                 let detail = current.map { $0.editable ? "" : " Field type: \($0.role.isEmpty ? "unknown" : $0.role)." } ?? " No focused field was identified."
-                await saveDeliveryNote("Not inserted. \(reason)\(detail) Use Copy last text.", for: session.id)
+                await saveDeliveryNote("Not inserted. \(reason)\(detail) \(recovery)", for: session.id)
             }
             return
         }
@@ -321,7 +330,7 @@ final class AppController: ObservableObject {
             try await store.update(session.id) { $0.delivery = .insertionRequested }
             guard current.matches(insertion.capture()) else {
                 try await store.update(session.id) { $0.delivery = .pending }
-                await saveDeliveryNote("Not inserted: the focused field changed before delivery. Use Copy last text.", for: session.id)
+                await saveDeliveryNote("Not inserted: the focused field changed before delivery. \(recovery)", for: session.id)
                 return
             }
             try insertion.insert(session.text, into: current, method: method)
@@ -330,8 +339,8 @@ final class AppController: ObservableObject {
             stagedSessionID = nil
             await saveDeliveryNote(method == .accessibility
                 ? "Text sent through Accessibility to \(current.application). Check the field."
-                : "Paste sent to \(current.application). Check the field; if it is empty, use Copy last text.", for: session.id)
-        } catch { await saveDeliveryNote("Insertion not confirmed: \(error.localizedDescription) Use Copy last text.", for: session.id) }
+                : "Paste sent to \(current.application). Text is on the clipboard if you need to paste again with ⌘V.", for: session.id)
+        } catch { await saveDeliveryNote("Insertion not confirmed: \(error.localizedDescription) \(recovery)", for: session.id) }
         await refreshHistory()
     }
     private func saveDeliveryNote(_ note: String, for id: UUID) async {

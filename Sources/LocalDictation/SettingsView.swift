@@ -54,6 +54,11 @@ struct SettingsView: View {
                 }
                 Text("Automatic insertion needs macOS Accessibility access. Microphone access alone only enables recording.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Automatically copy new dictations to clipboard", isOn: Binding(
+                    get: { draft.effectiveAutomaticClipboardCopy },
+                    set: { draft.automaticClipboardCopy = $0 }))
+                Text("Keeps the complete text ready for ⌘V, even if insertion fails. Turn off automatic insertion below for clipboard-only dictation. Empty recordings leave the clipboard unchanged.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Insert automatically when the original field is unchanged", isOn: $draft.automaticInsertion)
                 Toggle("Use standard paste for insertion (recommended)", isOn: $draft.allowPasteFallback)
                 Text("Paste fallback leaves the transcript on your clipboard. It never presses Return. Delivery is recorded as requested, not confirmed.")

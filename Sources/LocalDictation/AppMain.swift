@@ -158,7 +158,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if overlay == nil {
             let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 228),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-            panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller))
+            panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller) { [weak panel] height in
+                guard let panel, height > 0, abs(panel.frame.height - height) > 1 else { return }
+                var frame = panel.frame
+                frame.origin.y += frame.height - height
+                frame.size = NSSize(width: 446, height: height)
+                panel.setFrame(frame, display: true)
+            })
             panel.title = "Latest dictation"
             panel.isOpaque = false
             panel.backgroundColor = .clear

@@ -205,3 +205,9 @@ A usable first version is a locally buildable and launchable app that records by
 The product quality goal is not complete until representative speech demonstrates an improvement over default macOS dictation for the intended workflow, and delivery in Blint has been exercised. A runnable app is an engineering milestone, not evidence of that quality.
 
 Document remaining limitations and failed checks plainly. Report actual file locations and actual commands/tests run. Do not claim successful model inference, application compilation, microphone capture, or system-wide insertion without having performed and checked them.
+
+### Clipboard fallback and compact recovery panel
+
+New, non-empty dictations copy their complete text to the clipboard by default, independently of whether automatic insertion is enabled, permitted, or successful. Settings must expose an automatic-copy toggle and permit clipboard-only use. Empty results and history retranscriptions leave the clipboard unchanged. Clipboard copy does not imply that a target field received text.
+
+The floating recovery panel sizes to its content, caps the transcript area's height, and allows scrolling through the complete text. Show delivery feedback once, preserve the panel's top edge when its height changes, and retain the existing temporary visibility and draggable positioning.

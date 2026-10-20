@@ -22,3 +22,22 @@ import Testing
         #expect(restored.delivery == .copied)
     }
 }
+
+@Suite("Automatic clipboard copy") struct AutomaticClipboardTests {
+    @Test func oldSettingsEnableCopyAndExplicitChoicePersists() throws {
+        var settings = AppSettings()
+        let oldData = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(AppSettings.self, from: oldData).effectiveAutomaticClipboardCopy)
+        settings.automaticClipboardCopy = false
+        #expect(!(try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))).effectiveAutomaticClipboardCopy)
+    }
+    @Test func copyIsIndependentOfInsertionButNeverCopiesSilenceOrRetries() {
+        var settings = AppSettings()
+        settings.automaticInsertion = false
+        #expect(settings.shouldCopyTranscript("Blint", newRecording: true))
+        #expect(!settings.shouldCopyTranscript(" \n", newRecording: true))
+        #expect(!settings.shouldCopyTranscript("Blint", newRecording: false))
+        settings.automaticClipboardCopy = false
+        #expect(!settings.shouldCopyTranscript("Blint", newRecording: true))
+    }
+}

@@ -3,6 +3,7 @@ import AppKit
 
 struct RecordingOverlay: View {
     @ObservedObject var controller: AppController
+    var onHeightChange: (CGFloat) -> Void = { _ in }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -40,7 +41,11 @@ struct RecordingOverlay: View {
             } else if controller.phase == .idle, controller.noSpeechDetected {
                 Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
-                Text(latest.text).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+                ScrollView(.vertical) {
+                    Text(latest.text).font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(height: transcriptHeight(latest.text))
                 if let note = latest.deliveryNote {
                     Text(note).font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -49,7 +54,9 @@ struct RecordingOverlay: View {
                     Button("Copy last text", systemImage: "doc.on.doc") { controller.copy(latest) }
                         .buttonStyle(.borderedProminent).controlSize(.small)
                     Spacer()
-                    Text(controller.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    if controller.message != latest.deliveryNote {
+                        Text(controller.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
                 }
             } else {
                 Text(controller.message).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
@@ -57,10 +64,27 @@ struct RecordingOverlay: View {
             InsertionPermissionNotice(automaticInsertion: controller.settings.automaticInsertion) {
                 controller.showSettings?()
             }
-        }.padding(18).frame(width: 446, height: 290, alignment: .topLeading)
+        }.padding(18).frame(width: 446, alignment: .topLeading)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(GeometryReader { geometry in
+                Color.clear.preference(key: PanelHeightKey.self, value: geometry.size.height)
+            })
+            .onPreferenceChange(PanelHeightKey.self, perform: onHeightChange)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }
+    private func transcriptHeight(_ text: String) -> CGFloat {
+        let bounds = (text as NSString).boundingRect(
+            with: NSSize(width: 400, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: NSFont.preferredFont(forTextStyle: .callout)])
+        return min(120, max(20, ceil(bounds.height) + 4))
+    }
+}
+
+private struct PanelHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 final class RecordingPanel: NSPanel {

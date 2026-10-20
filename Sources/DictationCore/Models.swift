@@ -120,6 +120,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var repositoryVocabulary: RepositoryVocabulary?
     public var selectedProfileID: UUID?
     public var modelDirectory: String = ""
+    public var automaticClipboardCopy: Bool?
+    public var effectiveAutomaticClipboardCopy: Bool { automaticClipboardCopy ?? true }
+    public func shouldCopyTranscript(_ text: String, newRecording: Bool) -> Bool {
+        newRecording && effectiveAutomaticClipboardCopy &&
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     public var automaticInsertion = true
     public var allowPasteFallback = true
     public var allowTerminalApps = false
