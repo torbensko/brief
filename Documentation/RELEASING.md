@@ -36,3 +36,7 @@ Packaging uses a release build. Distribution can also run locally with the signi
 The displayed app and downloadable bundle are Brief. Internal Swift targets and the existing `local.LocalDictation` bundle identifier remain stable. Data remains in `~/Library/Application Support/LocalDictation`, preserving downloaded models and settings from the original app. The first Developer ID build can require regranting permissions because it has a different signing identity from the development build.
 
 `Resources/Brief.png` is the full-bleed square master: no border, mask, or pre-rounded corners. `Scripts/build-icon.sh` derives the app icon sizes without applying a mask. The website uses this same master. Let the operating system and website styles handle presentation.
+
+## Identifying an installed build
+
+The menu and Settings show the version and build number from the running app's bundle. `VERSION` is the release version; bump it for each published update (patch for fixes, minor for compatible features, major for breaking changes). Local builds use the Git commit count as their build number unless `BUILD_NUMBER` is supplied. Build after committing so the number identifies that revision. “View latest release” opens GitHub for comparison; it does not silently install an update.

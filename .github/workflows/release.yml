@@ -18,6 +18,8 @@ jobs:
       release: ${{ steps.check.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,6 +42,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - run: xcodebuild -downloadComponent MetalToolchain
       - run: swift test
       - name: Import Developer ID certificate
@@ -81,6 +85,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           name: signed-release

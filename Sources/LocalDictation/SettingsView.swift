@@ -24,6 +24,12 @@ struct SettingsView: View {
             }.padding(12)
             Divider()
             HStack {
+                Text(AppVersion.display).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Link("View latest release", destination: URL(string: "https://github.com/torbensko/brief/releases/latest")!)
+                    .font(.caption)
+            }.padding(.horizontal, 16).padding(.top, 8)
+            HStack {
                 Text(saveMessage.isEmpty ? "\(controller.modelLoaded ? "Model loaded" : "Model not loaded") · no cloud transcription" : saveMessage)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(3)
                 Spacer()

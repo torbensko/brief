@@ -57,7 +57,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     await controller.refreshHistory()
                     if !CommandLine.arguments.contains("--preview-card") { self.showHistory() }
                     controller.showLatestTranscript()
-                } else { await controller.bootstrap() }
+                } else {
+                    await controller.bootstrap()
+                    if CommandLine.arguments.contains("--show-settings") { self.showSettings() }
+                }
             }
         } catch {
             let alert = NSAlert(error: error)
@@ -110,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(item)
         }
         menu.autoenablesItems = false
+        add(AppVersion.display, nil, enabled: false)
         add(controller.message, nil, enabled: false)
         add(controller.modelLoaded ? "Model loaded" : "Model not loaded", nil, enabled: false)
         menu.addItem(.separator())
@@ -119,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Recent dictation", #selector(showHistory))
         add("Show last text", #selector(showLatest), enabled: controller.latestTranscript != nil)
         add("Settings…", #selector(showSettings))
+        add("View latest release…", #selector(showReleases))
         menu.addItem(.separator())
         add("Quit Brief", #selector(quit))
     }
@@ -126,6 +131,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func record() { controller?.toggleRecording() }
     @objc private func insert() { controller?.insertPending() }
     @objc private func showLatest() { controller?.showLatestTranscript() }
+    @objc private func showReleases() {
+        NSWorkspace.shared.open(URL(string: "https://github.com/torbensko/brief/releases/latest")!)
+    }
     @objc private func quit() { NSApp.terminate(nil) }
     @objc private func showHistory() {
         guard let controller else { return }

@@ -21,7 +21,7 @@ app="$PWD/build/Brief.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(cat VERSION)" "$app/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER:-1}" "$app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER:-$(git rev-list --count HEAD)}" "$app/Contents/Info.plist"
 Scripts/build-icon.sh
 cp build/Brief.icns "$app/Contents/Resources/Brief.icns"
 cp "$bin_dir/Brief" "$bin_dir/DictationWorker" "$app/Contents/MacOS/"

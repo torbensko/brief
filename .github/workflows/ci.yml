@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - run: xcodebuild -downloadComponent MetalToolchain
       - run: swift test
       - run: ./Scripts/package.sh --unsigned
