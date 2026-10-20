@@ -25,9 +25,13 @@ struct RecordingOverlay: View {
                     ProgressView().controlSize(.small)
                     Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
                 } else if controller.phase == .idle {
-                    Button("Recent") { controller.showHistory?() }.modifier(PanelButtonStyle()).controlSize(.small)
+                    Button { controller.showHistory?() } label: {
+                        Image(systemName: "clock.arrow.circlepath").frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain).help("Recent dictation")
+                    .accessibilityLabel("Recent dictation")
                     Button { controller.hideOverlay?() } label: { Image(systemName: "xmark").frame(width: 20, height: 20) }
-                        .modifier(PanelButtonStyle()).help("Close")
+                        .modifier(PanelButtonStyle()).buttonBorderShape(.circle).help("Close")
                         .accessibilityLabel("Close dictation panel")
                 }
             }
