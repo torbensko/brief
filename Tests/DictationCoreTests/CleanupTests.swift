@@ -7,6 +7,7 @@ import Testing
         for (original, edited) in [
             ("I think we should keep Blint.", "We should keep Blint."),
             ("Do not delete this file.", "Do delete this file."),
+            ("It is not not working.", "It is not working."),
             ("Wait 15 minutes before retrying.", "Wait 5 minutes before retrying."),
             ("Please update Blint today.", "Please update Blink today."),
             ("Read package.json first.", "Read package.swift first."),

@@ -58,7 +58,7 @@ public enum CleanupPolicy {
         guard matches(literals, original) == matches(literals, trimmed) else { return "Cleanup changed a literal or address." }
         let protected = #"\b(?:not|never|no|cannot|can't|don't|doesn't|won't|shouldn't|wouldn't|couldn't|mustn't|might|may|perhaps|maybe|probably|possibly|if|unless|must|should|could|would|always|only|i think|i believe|i'm not sure)\b"#
         func collapsed(_ words: [String]) -> [String] {
-            words.reduce(into: []) { if $0.last != $1 { $0.append($1) } }
+            words.reduce(into: []) { if $0.last != $1 || !["i think", "i believe"].contains($1) { $0.append($1) } }
         }
         guard collapsed(matches(protected, original.lowercased())) == collapsed(matches(protected, trimmed.lowercased())) else {
             return "Cleanup changed a qualifier or condition."
