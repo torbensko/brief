@@ -2,7 +2,7 @@ import Foundation
 import CryptoKit
 import DictationCore
 
-/// The app's only network feature. Called only by the explicit Download Model button.
+/// Explicit model downloads; recognition and cleanup never use the network.
 /// Metadata resolves once to an immutable revision; every subsequent download uses it.
 actor ModelInstaller {
     struct ModelInfo: Decodable {
@@ -22,10 +22,9 @@ actor ModelInstaller {
         var installedAt: Date
         var sha256: [String: String]
     }
-    func install(under root: URL, progress: @escaping @Sendable (String) -> Void) async throws -> URL {
+    func install(under root: URL, repository: String = ModelDirectory.repository, progress: @escaping @Sendable (String) -> Void) async throws -> URL {
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
-        let repository = ModelDirectory.repository
         let metadataURL = URL(string: "https://huggingface.co/api/models/\(repository)?blobs=true")!
         progress("Fetching the model file manifest…")
         let (data, response) = try await session.data(from: metadataURL)
@@ -37,7 +36,7 @@ actor ModelInstaller {
         let files = info.siblings.filter {
             // Flat model files only; no Python code or remote executable model code.
             !$0.rfilename.contains("/") && !$0.rfilename.contains("..") &&
-            (["json", "safetensors", "txt", "model"].contains(URL(fileURLWithPath: $0.rfilename).pathExtension)
+            (["json", "safetensors", "txt", "model", "jinja"].contains(URL(fileURLWithPath: $0.rfilename).pathExtension)
              || ["README.md", "LICENSE"].contains($0.rfilename))
         }
         guard files.contains(where: { $0.rfilename.hasSuffix(".safetensors") }) else {
@@ -45,7 +44,7 @@ actor ModelInstaller {
         }
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let destination = root.appendingPathComponent("Qwen3-ASR-1.7B-bf16-\(info.sha)")
+        let destination = root.appendingPathComponent("\(repository.split(separator: "/").last!)-\(info.sha)")
         if fm.fileExists(atPath: destination.path) {
             try ModelDirectory.validate(destination)
             return destination

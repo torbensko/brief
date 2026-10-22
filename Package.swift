@@ -13,6 +13,8 @@ var targets: [Target] = [
 dependencies += [
     .package(url: "https://github.com/Blaizzy/mlx-audio-swift.git", exact: "0.1.5"),
     .package(url: "https://github.com/ml-explore/mlx-swift.git", exact: "0.32.3"),
+    .package(url: "https://github.com/huggingface/swift-transformers.git", exact: "1.3.5"),
+    .package(url: "https://github.com/ml-explore/mlx-swift-lm.git", exact: "3.32.3"),
     .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
 ]
 products += [
@@ -26,6 +28,9 @@ targets += [
     .executableTarget(name: "DictationWorker", dependencies: [
         "DictationCore",
         .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
+        .product(name: "MLXLLM", package: "mlx-swift-lm"),
+        .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+        .product(name: "Tokenizers", package: "swift-transformers"),
         .product(name: "MLX", package: "mlx-swift")
     ], swiftSettings: [.swiftLanguageMode(.v5)])
 ]

@@ -1,20 +1,21 @@
 import Foundation
 
 public struct WorkerRequest: Codable, Sendable {
-    public enum Operation: String, Codable, Sendable { case load, transcribe, unload }
+    public enum Operation: String, Codable, Sendable { case load, transcribe, unload, cleanup }
     public var id: UUID
     public var operation: Operation
     public var modelDirectory: String
+    public var text: String?
     public var audioPath: String?
     public var sampleRate: Double?
     public var context: String
     public var language: String
     public var tokenBudgetMultiplier: Int
     public init(id: UUID = UUID(), operation: Operation, modelDirectory: String,
-                audioPath: String? = nil, sampleRate: Double? = nil, context: String = "",
+                text: String? = nil, audioPath: String? = nil, sampleRate: Double? = nil, context: String = "",
                 language: String = "English", tokenBudgetMultiplier: Int = 1) {
         self.id = id; self.operation = operation; self.modelDirectory = modelDirectory
-        self.audioPath = audioPath; self.sampleRate = sampleRate; self.context = context
+        self.text = text; self.audioPath = audioPath; self.sampleRate = sampleRate; self.context = context
         self.language = language; self.tokenBudgetMultiplier = tokenBudgetMultiplier
     }
 }
@@ -23,9 +24,10 @@ public struct WorkerResponse: Codable, Sendable {
     public var id: UUID
     public var success: Bool
     public var message: String?
+    public var cleanup: TranscriptCleanup?
     public var attempt: TranscriptAttempt?
-    public init(id: UUID, success: Bool, message: String? = nil, attempt: TranscriptAttempt? = nil) {
-        self.id = id; self.success = success; self.message = message; self.attempt = attempt
+    public init(id: UUID, success: Bool, message: String? = nil, attempt: TranscriptAttempt? = nil, cleanup: TranscriptCleanup? = nil) {
+        self.cleanup = cleanup; self.id = id; self.success = success; self.message = message; self.attempt = attempt
     }
 }
 

@@ -33,6 +33,7 @@ final class AppController: ObservableObject {
     let hotKeys = HotKeyManager()
     private let settingsURL: URL
     private let worker = WorkerClient()
+    private let cleanupWorker = WorkerClient()
     private let recorder = AudioRecorder()
     private let insertion = InsertionService()
     private let installer = ModelInstaller()
@@ -276,11 +277,20 @@ final class AppController: ObservableObject {
                 showOverlayTemporarily()
                 return
             }
+            if settings.effectiveTidyWording && attempt.warnings.isEmpty {
+                message = "Tidying wording locally…"
+                let cleanup = try await tidy(attempt.text, context: session.vocabulary)
+                try Task.checkCancellation()
+                try await store.update(session.id) { $0.cleanup = cleanup }
+                await refreshHistory()
+            }
+            try Task.checkCancellation()
+            let deliveryText = sessions.first(where: { $0.id == session.id })?.text ?? attempt.text
             message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
             var copied = false
-            if settings.shouldCopyTranscript(attempt.text, newRecording: automaticInsertion) {
+            if settings.shouldCopyTranscript(deliveryText, newRecording: automaticInsertion) {
                 NSPasteboard.general.clearContents()
-                copied = NSPasteboard.general.setString(attempt.text, forType: .string)
+                copied = NSPasteboard.general.setString(deliveryText, forType: .string)
                 await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
                     : "Could not copy automatically. Use Copy last text.", for: session.id)
             }
@@ -299,6 +309,60 @@ final class AppController: ObservableObject {
             } catch { errorMessage = "Could not update the recording entry: \(error.localizedDescription)" }
             message = description
             await refreshHistory(); showOverlayTemporarily()
+        }
+    }
+    private func tidy(_ original: String, context: String) async throws -> TranscriptCleanup {
+        func fallback(_ note: String) -> TranscriptCleanup {
+            TranscriptCleanup(original: original, text: original, model: CleanupPolicy.repository, note: note)
+        }
+        guard let path = settings.cleanupModelDirectory, !path.isEmpty else {
+            return fallback("Cleanup model not installed. Original kept.")
+        }
+        let timeout = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            self?.cleanupWorker.stop()
+        }
+        defer { timeout.cancel(); cleanupWorker.stop() }
+        do {
+            let response = try await cleanupWorker.request(WorkerRequest(operation: .cleanup,
+                modelDirectory: path, text: original, context: context))
+            try Task.checkCancellation()
+            guard let result = response.cleanup, result.original == original else {
+                return fallback("Cleanup returned an invalid result. Original kept.")
+            }
+            return result
+        } catch {
+            try Task.checkCancellation()
+            return fallback("Cleanup unavailable or timed out. Original kept.")
+        }
+    }
+    func copyOriginal(_ session: DictationSession) {
+        guard let original = session.cleanup?.original else { return }
+        NSPasteboard.general.clearContents()
+        if NSPasteboard.general.setString(original, forType: .string) {
+            message = "Original copied · cleaned text remains available in Recent"
+        }
+    }
+    func downloadCleanupModel() {
+        guard !isBusy else { return }
+        phase = .downloading; errorMessage = nil
+        operationTask = Task {
+            defer { phase = .idle }
+            do {
+                let destination = try await installer.install(under: root.appendingPathComponent("Models"),
+                    repository: CleanupPolicy.repository) { [weak self] status in
+                    Task { @MainActor [weak self] in self?.downloadMessage = status }
+                }
+                var updated = settings; updated.cleanupModelDirectory = destination.path
+                // Downloading is an explicit opt-in to trying wording cleanup.
+                updated.tidyWording = true
+                phase = .idle
+                try apply(updated)
+                downloadMessage = "Cleanup ready · Tidy wording is on."
+            } catch {
+                if error is CancellationError { downloadMessage = "Download cancelled." }
+                else { report(error) }
+            }
         }
     }
     func insertPending() {
@@ -485,13 +549,13 @@ final class AppController: ObservableObject {
     func cancelProcessing() {
         guard [.transcribing, .loading, .downloading].contains(phase) else { return }
         operationTask?.cancel()
-        worker.stop()
+        worker.stop(); cleanupWorker.stop()
     }
     func shutdown() async {
         overlayDismissTask?.cancel()
         if phase == .stopping || phase == .preparing { await operationTask?.value }
         if phase == .recording { phase = .stopping; await finishRecording(transcribe: false) }
-        operationTask?.cancel(); worker.stop()
+        operationTask?.cancel(); worker.stop(); cleanupWorker.stop()
         await operationTask?.value
         recoveryTimer?.invalidate(); recoveryTimer = nil
         hotKeys.unregister(); stopTicker(); endActivity(); stopPlayback()
@@ -536,7 +600,7 @@ final class AppController: ObservableObject {
     private func showOverlayTemporarily() {
         overlayDismissTask?.cancel(); showOverlay?()
         overlayDismissTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(self?.deliveryConfirmed == true ? 1 : 5)) } catch { return }
+            do { try await Task.sleep(for: .seconds(self?.deliveryConfirmed == true && self?.latestTranscript?.cleanup?.changed != true ? 1 : 5)) } catch { return }
             guard let self, self.phase == .idle else { return }
             if let fade = self.fadeOverlay { fade() } else { self.hideOverlay?() }
         }

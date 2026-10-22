@@ -50,6 +50,10 @@ struct SettingsView: View {
         }
         .onChange(of: controller.settings) { previous, updated in
             // A background scan must not erase unsaved edits in other settings tabs.
+            if updated.cleanupModelDirectory != previous.cleanupModelDirectory {
+                draft.cleanupModelDirectory = updated.cleanupModelDirectory
+                draft.tidyWording = updated.tidyWording
+            }
             draft.repositoryVocabulary = updated.repositoryVocabulary
             draft.repositoriesPath = updated.repositoriesPath
             draft.recoveryPolicy = updated.recoveryPolicy
@@ -74,6 +78,21 @@ struct SettingsView: View {
                 Text(services.isInstalled ? "These choices apply immediately. Updates replace this installed copy of Brief; recordings and settings are kept." : "Run Brief from Applications to enable updates and Start at login.")
                     .font(.caption).foregroundStyle(.secondary)
                 if let error = services.serviceError { Text(error).font(.caption).foregroundStyle(.red) }
+            }
+            Section("Wording cleanup") {
+                Toggle("Tidy wording", isOn: Binding(get: { draft.effectiveTidyWording }, set: { draft.tidyWording = $0 }))
+                    .disabled(draft.cleanupModelDirectory == nil)
+                Text("An optional local editing pass removes stutters and empty filler, and fixes obvious grammar. Uncertain wording is left alone. Changes are highlighted; the original stays available in Recent.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text(draft.cleanupModelDirectory == nil ? "Download the separate cleanup model once (about 2.5 GB). No messages are uploaded." : "Cleanup model installed · works offline. Adds processing time after recognition.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if draft.cleanupModelDirectory == nil {
+                    Button("Download cleanup model and enable") { controller.downloadCleanupModel() }.disabled(controller.isBusy)
+                }
+                if controller.phase == .downloading {
+                    Text(controller.downloadMessage).font(.caption)
+                    Button("Cancel download") { controller.cancelProcessing() }
+                }
             }
             Section("Delivery") {
                 InsertionPermissionNotice(automaticInsertion: draft.automaticInsertion) {
@@ -123,7 +142,7 @@ struct SettingsView: View {
         Form {
             Section("Qwen3-ASR · 1.7B · BF16") {
                 Text("Full-weight local speech recognition. Download once, then use offline without an API key or subscription.")
-                Text("The model stays loaded in a separate helper process between recordings. There is no live transcription or automatic rewriting.")
+                Text("The model stays loaded in a separate helper process between recordings. There is no live transcription. Optional wording cleanup runs separately after recognition.")
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Download model from Hugging Face") { controller.downloadModel() }.disabled(controller.isBusy)
                 if controller.phase == .downloading {

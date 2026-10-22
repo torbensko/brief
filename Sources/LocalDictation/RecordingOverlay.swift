@@ -1,8 +1,10 @@
 import SwiftUI
 import AppKit
+import DictationCore
 
 struct RecordingOverlay: View {
     @ObservedObject var controller: AppController
+    @State private var showChanges = true
     var onHeightChange: (CGFloat) -> Void = { _ in }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -44,7 +46,7 @@ struct RecordingOverlay: View {
                 }.frame(height: 30).frame(maxWidth: .infinity)
                 Text("\(controller.recordingFinishHint) · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
-            } else if controller.phase == .idle, controller.deliveryConfirmed {
+            } else if controller.phase == .idle, controller.deliveryConfirmed, controller.latestTranscript?.cleanup?.changed != true {
                 Label(controller.message, systemImage: "checkmark.circle.fill")
                     .font(.headline).foregroundStyle(.green)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -53,10 +55,26 @@ struct RecordingOverlay: View {
                 Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
                 ScrollView(.vertical) {
-                    Text(latest.text).font(.callout)
+                    Group {
+                        if showChanges, let cleanup = latest.cleanup, cleanup.changed, latest.editedText == nil {
+                            CleanupComparison(cleanup: cleanup)
+                        } else { Text(latest.text) }
+                    }.font(.callout)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                }.frame(height: transcriptHeight(latest.text))
+                }.frame(height: transcriptHeight(showChanges ? (latest.cleanup?.original ?? latest.text) + " " : latest.text))
+                if let cleanup = latest.cleanup {
+                    if cleanup.changed {
+                        HStack {
+                            Toggle("Show edits", isOn: $showChanges).toggleStyle(.checkbox)
+                            Text("Added · removed (struck through)").foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Copy original") { controller.copyOriginal(latest) }.buttonStyle(.plain)
+                        }.font(.caption)
+                    } else {
+                        Text(cleanup.note ?? "Wording checked · no changes").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
                 if let note = latest.deliveryNote {
                     Text(note).font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

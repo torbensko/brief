@@ -86,6 +86,7 @@ public actor HistoryStore {
         _ = try update(id) { session in
             session.attempts.append(attempt)
             session.editedText = nil
+            session.cleanup = nil
             let empty = attempt.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             session.state = empty && attempt.warnings.isEmpty ? .noSpeech :
                 (attempt.warnings.isEmpty ? .ready : .needsReview)

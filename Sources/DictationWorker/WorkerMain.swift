@@ -54,6 +54,10 @@ private final class LocalEngine {
             model = nil; loadedPath = nil; Memory.clearCache()
             return WorkerResponse(id: request.id, success: true)
         }
+        if request.operation == .cleanup {
+            defer { Memory.clearCache() }
+            return WorkerResponse(id: request.id, success: true, cleanup: try await CleanupEngine().run(request))
+        }
         let folder = URL(fileURLWithPath: request.modelDirectory, isDirectory: true)
         guard folder.path.hasPrefix("/"), !request.modelDirectory.isEmpty else {
             throw DictationError.message("Choose or download a local model in Settings first.")

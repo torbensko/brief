@@ -60,6 +60,18 @@ Updates use Sparkle with signed feeds and archives from GitHub. Update requests 
 
 Audio, transcripts, settings, and downloaded weights live in `~/Library/Application Support/LocalDictation`, outside this project. Model downloading is explicit; recognition uses local files. The default keeps the latest recovery entry. Set a count or minute limit at the top of Recent; older audio and text are automatically deleted.
 
+## Optional wording cleanup
+
+In Settings → General → Wording cleanup, choose **Download cleanup model and enable**. This downloads a separate local model (about 2.5 GB) and turns on **Tidy wording**. Turn it off at any time and save settings. It is off by default.
+
+After recognition, Brief removes obvious stutters and empty filler and makes small grammatical corrections. It is instructed to preserve uncertainty, emphasis, project names and unclear wording. Structural checks and a second meaning-preservation pass reject questionable edits. This adds processing time and cannot guarantee unchanged meaning; review important messages.
+
+The panel's **Show edits** comparison highlights additions and strikes through removed words. Turn it off to see the clean result. **Copy original** retrieves the recognition text; Recent also lets you put it back into the editor. Only the clean plain text goes to your destination or clipboard. Both versions expire with the same recovery entry. Changed results remain visible for five seconds even after verified insertion.
+
+Cleanup stays offline. If the model is unavailable, fails, takes over a minute, or proposes a questionable edit, Brief keeps the original. Recognition warnings and dictations over 8,000 characters bypass cleanup. Cancelling keeps the saved original without inserting it.
+
+Synthetic checks can be run with `python3 Scripts/evaluate-cleanup.py --model /path/to/cleanup-model` after building the app. See [cleanup evaluation](Documentation/CLEANUP-EVALUATION.md).
+
 ## Project name dictionary
 
 Settings → Recognition scans `~/repos` at launch and keeps a short list of main project names, such as Blint and BuildIQ. It reads root project metadata and short README titles, uses the folder name as a fallback, and combines duplicate Git worktrees. Names from all projects are available together.

@@ -146,6 +146,19 @@ private struct TranscriptDetail: View {
             if let deliveryNote = session.deliveryNote { Text(deliveryNote).font(.callout).textSelection(.enabled) }
             if let note = session.note { Text(note).font(.callout).foregroundStyle(.secondary).textSelection(.enabled) }
             if let editError { Text(editError).font(.callout).foregroundStyle(.red) }
+            if let cleanup = session.cleanup {
+                if cleanup.changed {
+                    DisclosureGroup("Wording edits · additions highlighted, removals struck through") {
+                        ScrollView { CleanupComparison(cleanup: cleanup).textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 140)
+                        HStack {
+                            Button("Copy original") { controller.copyOriginal(session) }
+                            Button("Use original in editor") { draft = cleanup.original }
+                        }.controlSize(.small)
+                        Text("This compares recognition with cleanup. Manual edits below are separate.").font(.caption).foregroundStyle(.secondary)
+                    }
+                } else { Text(cleanup.note ?? "Wording checked · no changes").font(.caption).foregroundStyle(.secondary) }
+            }
             TextEditor(text: $draft)
                 .font(.system(.body, design: .monospaced))
                 .scrollContentBackground(.hidden)

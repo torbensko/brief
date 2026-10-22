@@ -76,12 +76,13 @@ public struct DictationSession: Codable, Identifiable, Equatable, Sendable {
     public var vocabulary: String
     public var targetApplication: String?
     public var attempts: [TranscriptAttempt] = []
+    public var cleanup: TranscriptCleanup?
     public var editedText: String?
     public var note: String?
     public var deliveryNote: String?
     public var audioDeleted: Bool = false
     public var duration: Double { sampleRate > 0 ? Double(frameCount) / sampleRate : 0 }
-    public var text: String { editedText ?? attempts.last?.text ?? "" }
+    public var text: String { editedText ?? cleanup?.text ?? attempts.last?.text ?? "" }
     public var canInsert: Bool {
         (state == .ready || state == .needsReview) && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -121,6 +122,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var repositoryVocabulary: RepositoryVocabulary?
     public var selectedProfileID: UUID?
     public var modelDirectory: String = ""
+    public var tidyWording: Bool?
+    public var cleanupModelDirectory: String?
+    public var effectiveTidyWording: Bool { tidyWording ?? false }
     public var automaticClipboardCopy: Bool?
     public var effectiveAutomaticClipboardCopy: Bool { automaticClipboardCopy ?? true }
     public func shouldCopyTranscript(_ text: String, newRecording: Bool) -> Bool {

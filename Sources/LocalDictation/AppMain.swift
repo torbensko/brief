@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            let preview = CommandLine.arguments.contains("--preview-recovery") || CommandLine.arguments.contains("--preview-card")
+            let preview = CommandLine.arguments.contains("--preview-recovery") || CommandLine.arguments.contains("--preview-card") || CommandLine.arguments.contains("--preview-cleanup")
             if preview { previewRoot = FileManager.default.temporaryDirectory.appendingPathComponent("LocalDictation-preview-" + UUID().uuidString) }
             let controller = try AppController(storageRoot: previewRoot)
             self.controller = controller
@@ -56,8 +56,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     session.audioDeleted = true
                     try? await controller.store.create(session)
                     try? await controller.store.appendAttempt(TranscriptAttempt(text: "In Blint, let the agent save the specification as a JSON document. Do not delete the existing file.", model: "UI preview — not a recognition result", vocabulary: "Blint, JSON", processingSeconds: 0, audioSeconds: 0, generationTokens: 0), to: session.id)
+                    if CommandLine.arguments.contains("--preview-cleanup") {
+                        try? await controller.store.update(session.id) {
+                            $0.cleanup = TranscriptCleanup(original: "I think, I think it would be really good to, to add a copy button in Blint.",
+                                text: "I think it would be good to add a copy button in Blint.", model: "UI preview")
+                            $0.attempts[0].text = $0.cleanup!.original
+                        }
+                    }
                     await controller.refreshHistory()
-                    if !CommandLine.arguments.contains("--preview-card") { self.showHistory() }
+                    if !CommandLine.arguments.contains("--preview-card") && !CommandLine.arguments.contains("--preview-cleanup") { self.showHistory() }
                     // Keep the synthetic preview visible for layout and drag inspection.
                     self.showOverlay()
                 } else {
