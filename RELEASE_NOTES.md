@@ -1,10 +1,15 @@
-# Brief 1.0
+# Brief 1.1.0
 
-Local dictation for explaining requirements to coding agents.
+Brief now stays up to date from your Applications folder.
 
-- Learns project names from your repositories and adds a small coding vocabulary.
-- Hold to dictate or use a start/stop shortcut; recognition processes the complete recording.
-- Inserts into the focused field, with a temporary result card and a short recovery buffer.
-- Runs Qwen3-ASR locally on Apple Silicon. Model download is a separate first-run step.
+- Signed Sparkle updates, with automatic checking and installation settings and a Check for Updates command.
+- Start at login, managed through macOS Login Items.
+- Automatic clipboard copy, so your dictation remains ready for paste even when insertion fails.
+- Silence no longer causes the recogniser to recite the project vocabulary.
+- A compact, scrollable panel with a remembered drag position, circular glass close button and history icon.
+- Verified insertion shows a brief green tick; unconfirmed delivery keeps the recovery panel visible for five seconds.
+- The running version and build number are visible in Settings and the menu.
 
-Requires an Apple Silicon Mac running macOS 14 or later. Grant Microphone and Accessibility access during setup. Recognition quality depends on speech and recording conditions; check important specifications before submitting them.
+Install this version in Applications once to enable future in-app updates. Earlier versions do not contain an updater. Existing settings, downloaded models and recent dictations are retained. Start at login is optional and remains off unless enabled.
+
+Requires Apple Silicon and macOS 14 or later. Recognition runs locally; update checks contact GitHub without uploading recordings or transcriptions.

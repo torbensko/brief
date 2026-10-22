@@ -56,6 +56,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: ./Scripts/package.sh
       - name: Remove temporary signing keychain
         if: always()
@@ -70,6 +71,7 @@ jobs:
             dist/Brief.dmg
             dist/Brief.zip
             dist/SHA256SUMS.txt
+            dist/appcast.xml
           if-no-files-found: error
       - name: Keep notarization results
         if: always()
@@ -109,5 +111,5 @@ jobs:
             echo 'Existing version tag points at a different commit; bump VERSION.' >&2
             exit 1
           fi
-          gh release upload "$TAG" artifacts/Brief.dmg artifacts/Brief.zip artifacts/SHA256SUMS.txt --clobber
+          gh release upload "$TAG" artifacts/Brief.dmg artifacts/Brief.zip artifacts/SHA256SUMS.txt artifacts/appcast.xml --clobber
           gh release edit "$TAG" --target "$GITHUB_SHA" --draft=false --latest

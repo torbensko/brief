@@ -39,6 +39,16 @@ fi
 cp "$metal_library" "$app/Contents/Resources/mlx.metallib"
 sign_options=(--force --sign "$identity")
 if [ "${DISTRIBUTION:-0}" = 1 ]; then sign_options+=(--options runtime --timestamp); fi
+# Preserve Sparkle's symlinks, executable permissions and helper entitlements.
+sparkle_source="$PWD/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+mkdir -p "$app/Contents/Frameworks"
+rm -rf "$app/Contents/Frameworks/Sparkle.framework"
+ditto "$sparkle_source" "$app/Contents/Frameworks/Sparkle.framework"
+sparkle="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
+for helper in "$sparkle"/XPCServices/*.xpc "$sparkle/Updater.app" "$sparkle/Autoupdate"; do
+    codesign "${sign_options[@]}" --preserve-metadata=entitlements "$helper"
+done
+codesign "${sign_options[@]}" "$app/Contents/Frameworks/Sparkle.framework"
 codesign "${sign_options[@]}" "$app/Contents/MacOS/DictationWorker"
 codesign "${sign_options[@]}" --entitlements Resources/Brief.entitlements "$app"
 codesign --verify --deep --strict "$app"

@@ -217,3 +217,9 @@ The floating recovery panel sizes to its content, caps the transcript area's hei
 Show a green tick for one second and fade out only after reading back the expected destination-field contents. A successful Accessibility call or posted paste event alone is not proof of insertion. If the field cannot be verified, retain the recovery panel for five seconds; copied text and Recent remain available afterwards. Manual reopening also lasts five seconds.
 
 The drag handle must offer a generous clickable area and save the panel's top-left anchor, independently of its changing height. Resizing must not overwrite the user's chosen anchor or recenter the panel. Clamp it to a connected display if needed. Close and Recent use native Liquid Glass controls on supported macOS versions with bordered controls on older versions.
+
+### Installed app updates and login startup
+
+The supported daily-use copy lives in Applications. Use Sparkle to check for and install signed, notarised GitHub releases in that location while retaining data outside the bundle. Expose automatic check/install controls and a manual check in Settings and the menu. Development and preview copies must not update themselves or register as login items. Updates must not interrupt recording or processing. Verify signed feeds and archives; never upload recognition data during update checks.
+
+Offer Start at login through macOS Service Management, off by default. Reflect native enabled, disabled and approval-required states, handle registration errors visibly, and provide a link to Login Items when approval is needed. These controls apply immediately rather than being cached in the general settings draft.

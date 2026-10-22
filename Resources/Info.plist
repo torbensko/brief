@@ -13,4 +13,11 @@
 <key>LSUIElement</key><true/>
 <key>NSMicrophoneUsageDescription</key><string>Record speech for local transcription and recoverable history on your Mac.</string>
 <key>NSHighResolutionCapable</key><true/>
+<key>SUFeedURL</key><string>https://github.com/torbensko/brief/releases/latest/download/appcast.xml</string>
+<key>SUPublicEDKey</key><string>5UJtnUbLMFr+N4mhFfzEWpLMyk2pzjjx6UrM8G/s9Dk=</string>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUAutomaticallyUpdate</key><true/>
+<key>SUEnableSystemProfiling</key><false/>
+<key>SUVerifyUpdateBeforeExtraction</key><true/>
+<key>SURequireSignedFeed</key><true/>
 </dict></plist>

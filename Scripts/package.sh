@@ -10,6 +10,7 @@ if [[ "$MODE" == release ]]; then
   : "${APPLE_ID:?Missing APPLE_ID}"
   : "${APPLE_ID_PASSWORD:?Missing APPLE_ID_PASSWORD}"
   : "${APPLE_TEAM_ID:?Missing APPLE_TEAM_ID}"
+  : "${SPARKLE_PRIVATE_KEY:?Missing Sparkle signing key}"
   [[ "$SIGNING_IDENTITY" == 'Developer ID Application:'* ]] || { echo 'A Developer ID Application certificate is required.' >&2; exit 1; }
 else
   export SIGNING_IDENTITY=-
@@ -56,4 +57,13 @@ if [[ "$MODE" == release ]]; then
 fi
 ditto -c -k --keepParent "$APP" "$ZIP"
 (cd dist && shasum -a 256 "$(basename "$DMG")" "$(basename "$ZIP")" > "SHA256SUMS${SUFFIX}.txt")
+if [[ "$MODE" == release ]]; then
+  mkdir -p "$STAGE/updates"
+  cp "$ZIP" "$STAGE/updates/Brief.zip"
+  printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+    --ed-key-file - --maximum-deltas 0 \
+    --download-url-prefix "https://github.com/torbensko/brief/releases/download/v$(cat VERSION)/" \
+    --link "https://torbensko.com/software/brief/" "$STAGE/updates"
+  cp "$STAGE/updates/appcast.xml" dist/appcast.xml
+fi
 echo "Packaged: $DMG"

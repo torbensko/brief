@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     // Keep the synthetic preview visible for layout and drag inspection.
                     self.showOverlay()
                 } else {
+                    AppServices.shared.start { [weak controller] in controller?.isBusy ?? false }
                     await controller.bootstrap()
                     if CommandLine.arguments.contains("--show-settings") { self.showSettings() }
                 }
@@ -126,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add("Recent dictation", #selector(showHistory))
         add("Show last text", #selector(showLatest), enabled: controller.latestTranscript != nil)
         add("Settings…", #selector(showSettings))
+        add("Check for Updates…", #selector(checkForUpdates), enabled: AppServices.shared.canCheckForUpdates && !controller.isBusy)
         add("View latest release…", #selector(showReleases))
         menu.addItem(.separator())
         add("Quit Brief", #selector(quit))
@@ -134,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func record() { controller?.toggleRecording() }
     @objc private func insert() { controller?.insertPending() }
     @objc private func showLatest() { controller?.showLatestTranscript() }
+    @objc private func checkForUpdates() { AppServices.shared.checkForUpdates() }
     @objc private func showReleases() {
         NSWorkspace.shared.open(URL(string: "https://github.com/torbensko/brief/releases/latest")!)
     }

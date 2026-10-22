@@ -5,6 +5,7 @@ import DictationCore
 
 struct SettingsView: View {
     @ObservedObject var controller: AppController
+    @ObservedObject private var services = AppServices.shared
     @State private var draft: AppSettings
     @State private var saveMessage = ""
     @State private var permissionsVersion = 0
@@ -43,6 +44,10 @@ struct SettingsView: View {
                 Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled).padding([.horizontal, .bottom], 16)
             }
         }.frame(width: 670, height: 650)
+        .onAppear { services.refreshLoginStatus() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            services.refreshLoginStatus()
+        }
         .onChange(of: controller.settings) { previous, updated in
             // A background scan must not erase unsaved edits in other settings tabs.
             draft.repositoryVocabulary = updated.repositoryVocabulary
@@ -53,6 +58,23 @@ struct SettingsView: View {
     }
     private var general: some View {
         Form {
+            Section("Startup and updates") {
+                Toggle("Start at login", isOn: Binding(get: { services.loginEnabled }, set: services.setStartAtLogin))
+                    .disabled(!services.isInstalled)
+                if services.loginNeedsApproval {
+                    Text("Waiting for approval in macOS Login Items.").font(.caption)
+                    Button("Open Login Items") { services.openLoginSettings() }
+                }
+                Toggle("Automatically check for updates", isOn: Binding(get: { services.automaticChecks }, set: services.setAutomaticChecks))
+                    .disabled(!services.isInstalled)
+                Toggle("Automatically download and install updates", isOn: Binding(get: { services.automaticDownloads }, set: services.setAutomaticDownloads))
+                    .disabled(!services.isInstalled)
+                Button("Check for Updates…") { services.checkForUpdates() }
+                    .disabled(!services.canCheckForUpdates || controller.isBusy)
+                Text(services.isInstalled ? "These choices apply immediately. Updates replace this installed copy of Brief; recordings and settings are kept." : "Run Brief from Applications to enable updates and Start at login.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if let error = services.serviceError { Text(error).font(.caption).foregroundStyle(.red) }
+            }
             Section("Delivery") {
                 InsertionPermissionNotice(automaticInsertion: draft.automaticInsertion) {
                     InsertionService.requestPermission()

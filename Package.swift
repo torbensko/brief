@@ -12,15 +12,17 @@ var targets: [Target] = [
 #if os(macOS)
 dependencies += [
     .package(url: "https://github.com/Blaizzy/mlx-audio-swift.git", exact: "0.1.5"),
-    .package(url: "https://github.com/ml-explore/mlx-swift.git", exact: "0.32.3")
+    .package(url: "https://github.com/ml-explore/mlx-swift.git", exact: "0.32.3"),
+    .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
 ]
 products += [
     .executable(name: "Brief", targets: ["LocalDictation"]),
     .executable(name: "DictationWorker", targets: ["DictationWorker"])
 ]
 targets += [
-    .executableTarget(name: "LocalDictation", dependencies: ["DictationCore"],
-                      swiftSettings: [.swiftLanguageMode(.v5)]),
+    .executableTarget(name: "LocalDictation", dependencies: ["DictationCore", .product(name: "Sparkle", package: "Sparkle")],
+                      swiftSettings: [.swiftLanguageMode(.v5)],
+                      linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
     .executableTarget(name: "DictationWorker", dependencies: [
         "DictationCore",
         .product(name: "MLXAudioSTT", package: "mlx-audio-swift"),
