@@ -12,7 +12,9 @@ Checked on 23 October 2026, on the development Apple Silicon Mac. These are synt
 
 ## Results
 
-All 14 synthetic cases in `Tests/Fixtures/cleanup.json` passed the final checks. Clear stutters were removed; uncertain claims, project terms, numbers and unclear content were retained. Some cases pass by rejecting a model proposal and returning the entire original, including any filler. Short cases took approximately 1.4–2.8 seconds including model loading on this Mac; longer text and other hardware will differ.
+The installed signed 1.2.0 build met 13 of the 14 exact output/preservation expectations in `Tests/Fixtures/cleanup.json`; one additional case safely fell back to its unchanged original. The evaluator explicitly accepts and reports that conservative fallback. Clear stutters were removed; uncertain claims, project terms, numbers and unclear content were retained. Some cases pass by rejecting a model proposal and returning the entire original, including any filler. Short cases took approximately 1.4–2.8 seconds in the development build and about 0.8–1.9 seconds in the signed release, including model loading on this Mac; longer text and other hardware will differ.
+
+The final qualifier-count check deliberately leaves “Could we, could we…” unchanged, even though it is likely a stutter. This is a known missed cleanup opportunity, not a claim that every repeat is removed. Revisit it after real-world feedback without weakening negation protection.
 
 During development, model-only editing weakened emphasis (“I really mean it”) and changed a legitimate repetition (“that that file”). A second model review did not catch every emphasis loss. The additional deterministic emphasis checks are therefore necessary, and neither layer proves semantic equivalence. Several fixtures informed those refinements; these are regression checks, not an independent quality benchmark.
 

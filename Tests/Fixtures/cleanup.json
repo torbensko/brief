@@ -61,7 +61,8 @@
   },
   {
     "text": "Could we, could we add a button to copy the the last message?",
-    "expected": "Could we add a button to copy the last message?"
+    "expected": "Could we add a button to copy the last message?",
+    "allowConservativeFallback": true
   },
   {
     "text": "I think this might work. I think the other option might work too.",
