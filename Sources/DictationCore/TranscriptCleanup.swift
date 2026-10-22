@@ -1,12 +1,14 @@
 import Foundation
 
 public struct TranscriptCleanup: Codable, Equatable, Sendable {
+    public var createdAt: Date
     public var original: String
     public var text: String
     public var model: String
     public var note: String?
     public var changed: Bool { original != text }
-    public init(original: String, text: String, model: String, note: String? = nil) {
+    public init(original: String, text: String, model: String, note: String? = nil, createdAt: Date = Date()) {
+        self.createdAt = createdAt
         self.original = original; self.text = text; self.model = model; self.note = note
     }
 }

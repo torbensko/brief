@@ -16,7 +16,7 @@ All 14 synthetic cases in `Tests/Fixtures/cleanup.json` passed the final checks.
 
 During development, model-only editing weakened emphasis (“I really mean it”) and changed a legitimate repetition (“that that file”). A second model review did not catch every emphasis loss. The additional deterministic emphasis checks are therefore necessary, and neither layer proves semantic equivalence. Several fixtures informed those refinements; these are regression checks, not an independent quality benchmark.
 
-71 core tests passed, including persistence, retry clearing old cleanup, defaults, text selection precedence, rejection rules, and reconstruction of both original and revised strings from the displayed diff. UI checks verified struck-through removals, switching to clean text, and restoring the original into the Recent editor using an isolated synthetic preview.
+72 core tests passed, including persistence, retry clearing old cleanup, defaults, text selection precedence, rejection rules, and reconstruction of both original and revised strings from the displayed diff. UI checks verified struck-through removals, switching to clean text, and restoring the original into the Recent editor using an isolated synthetic preview.
 
 ## Repeat
 

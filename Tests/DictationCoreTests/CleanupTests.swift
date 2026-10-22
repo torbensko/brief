@@ -47,6 +47,18 @@ import Testing
         session.editedText = "Manual edit"
         #expect(session.text == "Manual edit")
     }
+    @Test func timedRecoveryStartsWhenCleanupFinishesAndCopyDoesNotExtendIt() {
+        let now = Date()
+        var session = DictationSession(sampleRate: 16000, profileName: "Test", vocabulary: "")
+        session.state = .ready
+        session.attempts = [TranscriptAttempt(createdAt: now.addingTimeInterval(-100), text: "The the file", model: "test", vocabulary: "", processingSeconds: 0, audioSeconds: 0, generationTokens: 0)]
+        session.cleanup = TranscriptCleanup(original: "The the file", text: "The file", model: "test", createdAt: now)
+        let policy = RecoveryPolicy(mode: .minutes, value: 1)
+        #expect(policy.expired(in: [session], now: now.addingTimeInterval(59)).isEmpty)
+        session.delivery = .copied
+        session.updatedAt = now.addingTimeInterval(59)
+        #expect(policy.expired(in: [session], now: now.addingTimeInterval(61)) == [session.id])
+    }
     @Test func retryClearsPriorCleanupAndManualEdits() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

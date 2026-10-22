@@ -16,7 +16,7 @@ public struct RecoveryPolicy: Codable, Equatable, Sendable {
         case .count: candidates = Array(settled.dropFirst(max(1, value)))
         case .minutes:
             candidates = settled.filter {
-                let availableAt = $0.attempts.last?.createdAt ?? $0.updatedAt
+                let availableAt = $0.cleanup?.createdAt ?? $0.attempts.last?.createdAt ?? $0.updatedAt
                 return now.timeIntervalSince(availableAt) >= Double(max(1, value)) * 60
             }
         }
