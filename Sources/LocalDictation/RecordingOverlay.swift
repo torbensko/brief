@@ -31,6 +31,15 @@ struct RecordingOverlay: View {
                         Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
                     }
                 } else if controller.phase == .idle {
+                    if controller.latestTranscript?.cleanup?.changed == true,
+                       controller.latestTranscript?.editedText == nil {
+                        Toggle(isOn: $showChanges) {
+                            Label(showChanges ? "Edits on" : "Edits off", systemImage: "pencil")
+                        }
+                        .toggleStyle(.button).controlSize(.small)
+                        .help("Highlight wording changes or show the clean text")
+                        .accessibilityLabel("Show wording edits")
+                    }
                     Button { controller.showHistory?() } label: {
                         Image(systemName: "clock.arrow.circlepath").frame(width: 28, height: 28)
                     }
@@ -58,10 +67,6 @@ struct RecordingOverlay: View {
             } else if controller.phase == .idle, controller.noSpeechDetected {
                 Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
-                if latest.cleanup?.changed == true, latest.editedText == nil {
-                    Label("Wording tidied", systemImage: "wand.and.stars")
-                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                }
                 ScrollView(.vertical) {
                     Group {
                         if showChanges, let cleanup = latest.cleanup, cleanup.changed, latest.editedText == nil {
@@ -71,30 +76,21 @@ struct RecordingOverlay: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }.frame(height: transcriptHeight(showChanges ? (latest.cleanup?.original ?? latest.text) + " " : latest.text))
-                if let cleanup = latest.cleanup {
-                    if cleanup.changed {
-                        HStack {
-                            Toggle("Show edits", isOn: $showChanges).toggleStyle(.checkbox)
-                            Text("Added · removed (struck through)").foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Copy original") { controller.copyOriginal(latest) }.buttonStyle(.plain)
-                        }.font(.caption)
-                    } else {
-                        Text(cleanup.note ?? "Wording checked · no changes").font(.caption).foregroundStyle(.secondary)
+                if let cleanup = latest.cleanup, !cleanup.changed {
+                    Text(cleanup.note ?? "Wording checked · no changes").font(.caption).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 8) {
+                    Text(controller.message.isEmpty ? (latest.deliveryNote ?? "") : controller.message)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        .help(latest.deliveryNote ?? controller.message)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Copy text") { controller.copy(latest) }
+                    if latest.cleanup?.changed == true {
+                        Button("Copy original") { controller.copyOriginal(latest) }
                     }
                 }
-                if let note = latest.deliveryNote {
-                    Text(note).font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                HStack {
-                    Button("Copy last text", systemImage: "doc.on.doc") { controller.copy(latest) }
-                        .buttonStyle(.borderedProminent).controlSize(.small)
-                    Spacer()
-                    if controller.message != latest.deliveryNote {
-                        Text(controller.message).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    }
-                }
+                .buttonStyle(.bordered).controlSize(.small)
+
             } else {
                 Text(controller.message).font(.callout).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
             }
