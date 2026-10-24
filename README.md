@@ -64,11 +64,11 @@ Audio, transcripts, settings, and downloaded weights live in `~/Library/Applicat
 
 In Settings → General → Wording cleanup, choose **Download cleanup model and enable**. This downloads a separate local model (about 2.5 GB) and turns on **Tidy wording**. Turn it off at any time and save settings. It is off by default.
 
-After recognition, Brief removes obvious stutters and empty filler and makes small grammatical corrections. It is instructed to preserve uncertainty, emphasis, project names and unclear wording. Structural checks and a second meaning-preservation pass reject questionable edits. This adds processing time and cannot guarantee unchanged meaning; review important messages.
+After recognition, Brief removes obvious stutters and empty filler and makes small grammatical corrections. It is instructed to preserve uncertainty, emphasis, project names and unclear wording. Structural checks and a second meaning-preservation pass reject questionable edits. Cleanup adds at most three seconds; **Use original now** skips the wait. It cannot guarantee unchanged meaning; review important messages.
 
-The panel's **Show edits** comparison highlights additions and strikes through removed words. Turn it off to see the clean result. **Copy original** retrieves the recognition text; Recent also lets you put it back into the editor. Only the clean plain text goes to your destination or clipboard. Both versions expire with the same recovery entry. Changed results remain visible for five seconds even after verified insertion.
+After dictation, the floating panel labels changed results **Wording tidied** and opens with **Show edits** enabled for each new result. The comparison highlights additions and strikes through removed words. Turn it off to see the clean result. **Copy original** retrieves the recognition text; Recent also lets you put it back into the editor. Only the clean plain text goes to your destination or clipboard. Both versions expire with the same recovery entry. Changed results remain visible for five seconds even after verified insertion.
 
-Cleanup stays offline. If the model is unavailable, fails, takes over a minute, or proposes a questionable edit, Brief keeps the original. Recognition warnings and dictations over 8,000 characters bypass cleanup. Cancelling keeps the saved original without inserting it.
+Cleanup stays offline. If the model is unavailable, fails, takes over three seconds, or proposes a questionable edit, Brief keeps the original. Recognition warnings and dictations over 1,200 characters bypass cleanup. Cancelling keeps the saved original without inserting it.
 
 Synthetic checks can be run with `python3 Scripts/evaluate-cleanup.py --model /path/to/cleanup-model` after building the app. See [cleanup evaluation](Documentation/CLEANUP-EVALUATION.md).
 

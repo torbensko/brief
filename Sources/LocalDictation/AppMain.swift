@@ -14,6 +14,11 @@ struct LocalDictationApp {
             return
         }
         let app = NSApplication.shared
+        if CommandLine.arguments.contains("--check-cleanup-latency") {
+            Task { exit(await CleanupDiagnostics.run()) }
+            app.run()
+            return
+        }
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.accessory)

@@ -6,7 +6,8 @@ import DictationCore
 final class WorkerClient {
     private var process: Process?
     private var input: FileHandle?
-    private var outputTask: Task<Void, Never>?
+    private var output: FileHandle?
+    private var outputBuffer = Data()
     private var generation = UUID()
     private var pending: (UUID, CheckedContinuation<WorkerResponse, Error>)?
     var onExit: (() -> Void)?
@@ -23,7 +24,9 @@ final class WorkerClient {
     }
     func stop() {
         generation = UUID()
-        outputTask?.cancel(); outputTask = nil
+        output?.readabilityHandler = nil
+        try? output?.close(); output = nil
+        outputBuffer.removeAll()
         try? input?.close(); input = nil
         let oldProcess = process
         process = nil
@@ -66,23 +69,36 @@ final class WorkerClient {
         }
         try child.run()
         process = child; input = stdin.fileHandleForWriting
-        outputTask = Task { [weak self] in
-            do {
-                for try await line in stdout.fileHandleForReading.bytes.lines {
-                    guard !Task.isCancelled, let self, self.generation == token else { return }
-                    guard line.hasPrefix(WorkerResponse.prefix) else { continue }
-                    let payload = Data(line.dropFirst(WorkerResponse.prefix.count).utf8)
-                    let response = try JSONDecoder().decode(WorkerResponse.self, from: payload)
-                    guard let pending = self.pending, pending.0 == response.id else { continue }
-                    self.pending = nil
-                    if response.success { pending.1.resume(returning: response) }
-                    else { pending.1.resume(throwing: DictationError.message(response.message ?? "Transcription failed.")) }
-                }
-            } catch {
+        output = stdout.fileHandleForReading
+        outputBuffer.removeAll()
+        // AsyncBytes pipe readers can block each other while the idle speech
+        // worker waits for input. Read each ready pipe independently instead.
+        stdout.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty { handle.readabilityHandler = nil }
+            DispatchQueue.main.async { [weak self] in
                 guard let self, self.generation == token else { return }
-                self.failPending(error)
-                self.stop()
+                self.receive(data)
             }
+        }
+    }
+    private func receive(_ data: Data) {
+        outputBuffer.append(data)
+        do {
+            while let newline = outputBuffer.firstIndex(of: 0x0A) {
+                let line = String(decoding: outputBuffer[..<newline], as: UTF8.self)
+                outputBuffer.removeSubrange(...newline)
+                guard line.hasPrefix(WorkerResponse.prefix) else { continue }
+                let payload = Data(line.dropFirst(WorkerResponse.prefix.count).utf8)
+                let response = try JSONDecoder().decode(WorkerResponse.self, from: payload)
+                guard let pending, pending.0 == response.id else { continue }
+                self.pending = nil
+                if response.success { pending.1.resume(returning: response) }
+                else { pending.1.resume(throwing: DictationError.message(response.message ?? "Transcription failed.")) }
+            }
+        } catch {
+            failPending(error)
+            stop()
         }
     }
     private func failPending(_ error: Error) {

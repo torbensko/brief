@@ -25,7 +25,11 @@ struct RecordingOverlay: View {
                         label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).frame(width: 20)
                 } else if controller.phase == .transcribing {
                     ProgressView().controlSize(.small)
-                    Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
+                    if controller.tidyingWording {
+                        Button("Use original now") { controller.skipCleanup() }.controlSize(.small)
+                    } else {
+                        Button("Cancel") { controller.cancelProcessing() }.controlSize(.small)
+                    }
                 } else if controller.phase == .idle {
                     Button { controller.showHistory?() } label: {
                         Image(systemName: "clock.arrow.circlepath").frame(width: 28, height: 28)
@@ -54,6 +58,10 @@ struct RecordingOverlay: View {
             } else if controller.phase == .idle, controller.noSpeechDetected {
                 Text(controller.message).font(.callout)
             } else if controller.phase == .idle, let latest = controller.latestTranscript {
+                if latest.cleanup?.changed == true, latest.editedText == nil {
+                    Label("Wording tidied", systemImage: "wand.and.stars")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
                 ScrollView(.vertical) {
                     Group {
                         if showChanges, let cleanup = latest.cleanup, cleanup.changed, latest.editedText == nil {
@@ -99,6 +107,10 @@ struct RecordingOverlay: View {
                 Color.clear.preference(key: PanelHeightKey.self, value: geometry.size.height)
             })
             .onPreferenceChange(PanelHeightKey.self, perform: onHeightChange)
+            .onChange(of: controller.latestTranscript?.cleanup?.createdAt) { _, _ in
+                // Each new result starts with its edits visible in the floating panel.
+                showChanges = true
+            }
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }

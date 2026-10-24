@@ -8,7 +8,7 @@ Checked on 23 October 2026, on the development Apple Silicon Mac. These are synt
 - Temperature zero; independent editor and meaning-review contexts.
 - Structural checks reject changed quantities, coding literals, recognition terms, qualifiers, excessive edits and meaningful emphasis/politeness.
 - Intensifier removal is deliberately narrow: conversational forms such as “really good to”. This sacrifices some tidying to avoid weakening urgency.
-- Original recognition is persisted before cleanup. The 60-second timeout/failure path keeps it; explicit cancellation prevents delivery.
+- Original recognition is persisted before cleanup. The three-second timeout/failure path keeps it; explicit cancellation prevents delivery.
 
 ## Results
 
@@ -18,14 +18,23 @@ The final qualifier-count check deliberately leaves “Could we, could we…” 
 
 During development, model-only editing weakened emphasis (“I really mean it”) and changed a legitimate repetition (“that that file”). A second model review did not catch every emphasis loss. The additional deterministic emphasis checks are therefore necessary, and neither layer proves semantic equivalence. Several fixtures informed those refinements; these are regression checks, not an independent quality benchmark.
 
-72 core tests passed, including persistence, retry clearing old cleanup, defaults, text selection precedence, rejection rules, and reconstruction of both original and revised strings from the displayed diff. UI checks verified struck-through removals, switching to clean text, and restoring the original into the Recent editor using an isolated synthetic preview.
+73 core tests passed, including persistence, retry clearing old cleanup, defaults, text selection precedence, rejection rules, and reconstruction of both original and revised strings from the displayed diff. UI checks verified struck-through removals, switching to clean text, and restoring the original into the Recent editor using an isolated synthetic preview.
 
 ## Repeat
 
 ```sh
 Scripts/build-app.sh
 python3 Scripts/evaluate-cleanup.py --model /path/to/installed/cleanup-model
+build/Brief.app/Contents/MacOS/Brief --check-cleanup-latency
 swift test
 ```
 
 The evaluation uses the packaged worker and local weights, never a microphone or saved personal transcripts. Real-world usage should particularly assess missed qualifiers, deliberate repetitions, regional phrasing, ambiguous content, and unnecessary edits. Non-English cleanup has not been evaluated.
+
+## Real-use latency correction (1.2.1)
+
+A real 637-character dictation took about 3.5 seconds to recognize but then spent about 64 seconds waiting for cleanup to time out. The short synthetic cases did not establish acceptable real-use latency. Cleanup now has a three-second delivery budget, bypasses inputs over 1,200 characters, and offers Use original now. Both timeout and skip stop the isolated cleanup worker and deliver the saved original, never partial output. The earlier 1.2.0 timings above describe the model's short-case results, not a latency guarantee.
+
+The app-level integration check reproduced the stall with the recogniser loaded: the old shared async pipe reading timed out after ten seconds even though direct-worker cleanup took 1.55 seconds for 736 characters. Independent per-pipe readiness handlers resolve this contention. The initial development build then returned 184 characters in 2.16 seconds and 736 in 3.13 seconds with the recogniser still loaded. These are measured completions, including conservative unchanged fallbacks, not promises that every input will be edited. The three-second delivery budget still applies. The integration check also covers repeated helper launches, skipping an in-flight edit, restarting cleanup, and a subsequent recogniser request.
+
+A subsequent development-build run restarting the cleanup helper between every request took 3.33, 5.10 and 3.48 seconds for 184, 736 and 184 characters respectively; skip/restart and subsequent speech requests passed. This demonstrates that the transport stall is resolved, while also showing why the delivery deadline remains necessary. The floating panel was visually checked with synthetic removed words: Wording tidied, highlighted strikethroughs, Show edits enabled and Copy original were all present.

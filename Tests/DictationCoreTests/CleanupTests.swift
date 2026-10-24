@@ -3,6 +3,12 @@ import Testing
 @testable import DictationCore
 
 @Suite("Conservative wording cleanup") struct CleanupTests {
+    @Test func cleanupBudgetIsShortAndLongInputsBypassIt() {
+        #expect(CleanupPolicy.maximumWaitSeconds == 3)
+        #expect(!CleanupPolicy.shouldAttempt(" \n"))
+        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1200)))
+        #expect(!CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1201)))
+    }
     @Test func rejectsLostQualifiersNumbersNamesAndLiterals() {
         for (original, edited) in [
             ("I think we should keep Blint.", "We should keep Blint."),

@@ -12,6 +12,8 @@ final class AppController: ObservableObject {
     @Published var message = "Ready to record"
     @Published var errorMessage: String?
     @Published private(set) var noSpeechDetected = false
+    @Published private(set) var tidyingWording = false
+    private var cleanupSkipped = false
     @Published private(set) var deliveryConfirmed = false
     @Published private(set) var historyWarnings: [String] = []
     @Published private(set) var elapsed: Double = 0
@@ -315,26 +317,41 @@ final class AppController: ObservableObject {
         func fallback(_ note: String) -> TranscriptCleanup {
             TranscriptCleanup(original: original, text: original, model: CleanupPolicy.repository, note: note)
         }
+        try Task.checkCancellation()
+        guard CleanupPolicy.shouldAttempt(original) else {
+            return fallback("Long dictation · original kept without waiting for cleanup.")
+        }
         guard let path = settings.cleanupModelDirectory, !path.isEmpty else {
             return fallback("Cleanup model not installed. Original kept.")
         }
+        tidyingWording = true
+        cleanupSkipped = false
+        let started = ContinuousClock.now
         let timeout = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(60)) } catch { return }
+            do { try await Task.sleep(for: .seconds(CleanupPolicy.maximumWaitSeconds)) } catch { return }
             self?.cleanupWorker.stop()
         }
-        defer { timeout.cancel(); cleanupWorker.stop() }
+        defer { timeout.cancel(); cleanupWorker.stop(); tidyingWording = false }
         do {
             let response = try await cleanupWorker.request(WorkerRequest(operation: .cleanup,
                 modelDirectory: path, text: original, context: context))
             try Task.checkCancellation()
+            guard ContinuousClock.now - started < .seconds(CleanupPolicy.maximumWaitSeconds), !cleanupSkipped else {
+                return fallback("Cleanup skipped or time limit reached · original used.")
+            }
             guard let result = response.cleanup, result.original == original else {
                 return fallback("Cleanup returned an invalid result. Original kept.")
             }
             return result
         } catch {
             try Task.checkCancellation()
-            return fallback("Cleanup unavailable or timed out. Original kept.")
+            return fallback(cleanupSkipped ? "Cleanup skipped · original used." : "Cleanup exceeded its time limit or was unavailable · original used.")
         }
+    }
+    func skipCleanup() {
+        guard tidyingWording else { return }
+        cleanupSkipped = true
+        cleanupWorker.stop()
     }
     func copyOriginal(_ session: DictationSession) {
         guard let original = session.cleanup?.original else { return }
