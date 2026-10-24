@@ -294,7 +294,7 @@ final class AppController: ObservableObject {
                 NSPasteboard.general.clearContents()
                 copied = NSPasteboard.general.setString(deliveryText, forType: .string)
                 await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
-                    : "Could not copy automatically. Use Copy last text.", for: session.id)
+                    : "Could not copy automatically. Use Copy text.", for: session.id)
             }
             if automaticInsertion && settings.automaticInsertion,
                let saved = sessions.first(where: { $0.id == session.id }) {
@@ -357,7 +357,7 @@ final class AppController: ObservableObject {
         guard let original = session.cleanup?.original else { return }
         NSPasteboard.general.clearContents()
         if NSPasteboard.general.setString(original, forType: .string) {
-            message = "Original copied · cleaned text remains available in Recent"
+            message = "Original copied"
         }
     }
     func downloadCleanupModel() {
@@ -394,7 +394,7 @@ final class AppController: ObservableObject {
     }
     private func deliver(_ session: DictationSession, automatic: Bool, alreadyCopied: Bool = false) async {
         deliveryConfirmed = false
-        let recovery = alreadyCopied ? "Text is on the clipboard · press ⌘V to paste." : "Use Copy last text."
+        let recovery = alreadyCopied ? "Text is on the clipboard · press ⌘V to paste." : "Use Copy text."
         guard session.canInsert else { return }
         let current = insertion.capture()
         let decision = DeliveryPolicy.decide(DeliveryConditions(automatic: automatic,
@@ -466,7 +466,7 @@ final class AppController: ObservableObject {
     func copy(_ session: DictationSession) {
         NSPasteboard.general.clearContents()
         guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
-        message = "Copied · available in Recent until it expires"
+        message = "Copied to clipboard"
         Task {
             do { try await store.update(session.id) { $0.delivery = .copied }; await refreshHistory() }
             catch { report(error) }
