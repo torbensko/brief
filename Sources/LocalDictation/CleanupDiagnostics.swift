@@ -4,6 +4,51 @@ import DictationCore
 /// Synthetic integration check using the actual app-to-worker transport, with ASR
 /// left loaded as it is during everyday dictation. Never records or reads messages.
 @MainActor enum CleanupDiagnostics {
+    /// Exercises the real controller delivery path using a private pasteboard and
+    /// temporary history. Never touches the user's clipboard or focused field.
+    static func checkEarlyCopy() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Brief-early-copy-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var settings = AppSettings()
+        settings.automaticInsertion = false
+        settings.automaticClipboardCopy = true
+        try SettingsFile.save(settings, to: root.appendingPathComponent("settings.json"))
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let controller = try AppController(storageRoot: root, transcriptPasteboard: pasteboard)
+        for (takeOriginal, changeClipboard) in [(true, false), (true, true), (false, false)] {
+            let session = DictationSession(sampleRate: 16000, profileName: "Test", vocabulary: "")
+            let attempt = TranscriptAttempt(text: "The the quality is good.", model: "test", vocabulary: "", processingSeconds: 0, audioSeconds: 60, generationTokens: 0)
+            try await controller.store.create(session)
+            try await controller.store.appendAttempt(attempt, to: session.id)
+            await controller.refreshHistory()
+            guard let saved = controller.sessions.first(where: { $0.id == session.id }) else { throw DictationError.message("Missing test session.") }
+            controller.beginCleanupPresentation(saved)
+            if takeOriginal {
+                controller.copyCleanupOriginal()
+                guard pasteboard.string(forType: .string) == attempt.text else { throw DictationError.message("Original was not available while tidying.") }
+            }
+            if changeClipboard {
+                pasteboard.clearContents()
+                pasteboard.setString("A newer clipboard choice", forType: .string)
+            }
+            try await controller.store.update(session.id) {
+                $0.cleanup = TranscriptCleanup(original: attempt.text, text: "The quality is good.", model: "test")
+            }
+            await controller.refreshHistory()
+            try await controller.finishTranscriptDelivery(saved, attempt: attempt, automaticInsertion: true)
+            let expected = changeClipboard ? "A newer clipboard choice" : (takeOriginal ? attempt.text : "The quality is good.")
+            guard pasteboard.string(forType: .string) == expected,
+                  controller.cleanupPreview == nil,
+                  controller.sessions.first(where: { $0.id == session.id })?.text == "The quality is good." else {
+                throw DictationError.message("Cleanup replaced an early clipboard choice or lost the edited result.")
+            }
+            controller.copyCleanupOriginal() // A stale button action must do nothing.
+            guard pasteboard.string(forType: .string) == expected else { throw DictationError.message("Stale preview copied old text.") }
+        }
+        print("Early original copy, newer clipboard preservation, completed edit, and next-clip automatic copy passed.")
+    }
     static func run() async -> Int32 {
         let speech = WorkerClient(), editor = WorkerClient()
         defer { speech.stop(); editor.stop() }

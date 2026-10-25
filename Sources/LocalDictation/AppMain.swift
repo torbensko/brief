@@ -14,6 +14,14 @@ struct LocalDictationApp {
             return
         }
         let app = NSApplication.shared
+        if CommandLine.arguments.contains("--check-cleanup-copy") {
+            Task {
+                do { try await CleanupDiagnostics.checkEarlyCopy(); exit(0) }
+                catch { fputs("Early copy check failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            }
+            app.run()
+            return
+        }
         if CommandLine.arguments.contains("--check-cleanup-latency") {
             Task { exit(await CleanupDiagnostics.run()) }
             app.run()
@@ -39,7 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            let preview = CommandLine.arguments.contains("--preview-recovery") || CommandLine.arguments.contains("--preview-card") || CommandLine.arguments.contains("--preview-cleanup")
+            let preview = CommandLine.arguments.contains("--preview-recovery") || CommandLine.arguments.contains("--preview-card") || (CommandLine.arguments.contains("--preview-cleanup") || CommandLine.arguments.contains("--preview-cleanup-pending"))
             if preview { previewRoot = FileManager.default.temporaryDirectory.appendingPathComponent("LocalDictation-preview-" + UUID().uuidString) }
             let controller = try AppController(storageRoot: previewRoot)
             self.controller = controller
@@ -61,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     session.audioDeleted = true
                     try? await controller.store.create(session)
                     try? await controller.store.appendAttempt(TranscriptAttempt(text: "In Blint, let the agent save the specification as a JSON document. Do not delete the existing file.", model: "UI preview — not a recognition result", vocabulary: "Blint, JSON", processingSeconds: 0, audioSeconds: 0, generationTokens: 0), to: session.id)
-                    if CommandLine.arguments.contains("--preview-cleanup") {
+                    if (CommandLine.arguments.contains("--preview-cleanup") || CommandLine.arguments.contains("--preview-cleanup-pending")) {
                         try? await controller.store.update(session.id) {
                             $0.cleanup = TranscriptCleanup(original: "I think, I think it would be really good to, to add a copy button in Blint.",
                                 text: "I think it would be good to add a copy button in Blint.", model: "UI preview")
@@ -69,7 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         }
                     }
                     await controller.refreshHistory()
-                    if !CommandLine.arguments.contains("--preview-card") && !CommandLine.arguments.contains("--preview-cleanup") { self.showHistory() }
+                    if CommandLine.arguments.contains("--preview-cleanup-pending"),
+                       var pending = controller.latestTranscript {
+                        pending.cleanup = nil
+                        controller.beginCleanupPresentation(pending)
+                    }
+                    if !CommandLine.arguments.contains("--preview-card") && !(CommandLine.arguments.contains("--preview-cleanup") || CommandLine.arguments.contains("--preview-cleanup-pending")) { self.showHistory() }
                     // Keep the synthetic preview visible for layout and drag inspection.
                     self.showOverlay()
                 } else {

@@ -56,3 +56,10 @@ The user clarified that the percentage itself is the limit: no minimum, no maxim
 Regression checks now include sub-second allowances, five-minute recordings (30 seconds), ten-minute recordings (60 seconds), invalid durations, and eligibility beyond both former character cutoffs. The app integration diagnostic adds a synthetic specification above 8,000 characters under a ten-minute recording's 60-second budget. An initial stress run assigned that same 10,000+ character input a five-minute recording's 30-second allowance; the timeout correctly stopped it at that deadline.
 
 The final optimized candidate produced actual edits for 184, 1,314, 2,680 and 10,808 characters in 1.21, 3.00, 5.33 and 26.40 seconds, within budgets of 3, 12, 30 and 60 seconds. Skip/restart checks passed. All 74 core tests passed. These are synthetic timings on this Mac, not a guarantee that every transcript finishes before its proportional deadline.
+
+
+## Original preview and early copy (1.2.3)
+
+The floating panel now shows the persisted original while cleanup runs. It switches to the edited comparison when processing finishes. Copy original claims delivery for that session without cancelling cleanup: completion keeps the edited result available but does not write the clipboard again or automatically insert another version.
+
+`Brief --check-cleanup-copy` runs the actual controller completion path against temporary history and a private pasteboard. It verifies early original copying, preservation of a newer clipboard choice, retention of the finished edit, rejection of stale preview-copy actions, and normal automatic copying on the next clip. It passed locally. The user's clipboard and focused field are not touched. Synthetic UI previews verified the original and Copy original during processing, and the existing highlighted edits and matching copy buttons after completion.

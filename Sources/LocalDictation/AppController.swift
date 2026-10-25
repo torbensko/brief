@@ -14,6 +14,8 @@ final class AppController: ObservableObject {
     @Published private(set) var noSpeechDetected = false
     @Published private(set) var tidyingWording = false
     private var cleanupSkipped = false
+    @Published private(set) var cleanupPreview: DictationSession?
+    private var originalTakenSessionID: UUID?
     @Published private(set) var deliveryConfirmed = false
     @Published private(set) var historyWarnings: [String] = []
     @Published private(set) var elapsed: Double = 0
@@ -38,6 +40,7 @@ final class AppController: ObservableObject {
     private let cleanupWorker = WorkerClient()
     private let recorder = AudioRecorder()
     private let insertion = InsertionService()
+    private let transcriptPasteboard: NSPasteboard
     private let installer = ModelInstaller()
     private var operationTask: Task<Void, Never>?
     private var overlayDismissTask: Task<Void, Never>?
@@ -64,7 +67,8 @@ final class AppController: ObservableObject {
         !settings.modelDirectory.isEmpty && FileManager.default.fileExists(atPath: settings.modelDirectory)
     }
 
-    init(storageRoot: URL? = nil) throws {
+    init(storageRoot: URL? = nil, transcriptPasteboard: NSPasteboard = .general) throws {
+        self.transcriptPasteboard = transcriptPasteboard
         root = try storageRoot ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                            appropriateFor: nil, create: true).appendingPathComponent("LocalDictation", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -255,7 +259,12 @@ final class AppController: ObservableObject {
     private func transcribeSession(_ session: DictationSession, automaticInsertion: Bool) async {
         noSpeechDetected = false
         deliveryConfirmed = false
-        defer { phase = .idle; activeSessionID = nil; stopTicker(); endActivity(); Task { await refreshHistory() } }
+        originalTakenSessionID = nil
+        defer {
+            cleanupPreview = nil; tidyingWording = false
+            phase = .idle; activeSessionID = nil; stopTicker(); endActivity()
+            Task { await refreshHistory() }
+        }
         do {
             guard modelAvailable else {
                 throw DictationError.message("Audio saved. Download or choose a local model in Settings, then retry from History.")
@@ -280,27 +289,16 @@ final class AppController: ObservableObject {
                 return
             }
             if settings.effectiveTidyWording && attempt.warnings.isEmpty {
-                message = "Tidying wording locally…"
+                if let saved = sessions.first(where: { $0.id == session.id }) {
+                    beginCleanupPresentation(saved)
+                }
                 let cleanup = try await tidy(attempt.text, context: session.vocabulary, audioSeconds: session.duration)
                 try Task.checkCancellation()
                 try await store.update(session.id) { $0.cleanup = cleanup }
                 await refreshHistory()
             }
             try Task.checkCancellation()
-            let deliveryText = sessions.first(where: { $0.id == session.id })?.text ?? attempt.text
-            message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
-            var copied = false
-            if settings.shouldCopyTranscript(deliveryText, newRecording: automaticInsertion) {
-                NSPasteboard.general.clearContents()
-                copied = NSPasteboard.general.setString(deliveryText, forType: .string)
-                await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
-                    : "Could not copy automatically. Use Copy text.", for: session.id)
-            }
-            if automaticInsertion && settings.automaticInsertion,
-               let saved = sessions.first(where: { $0.id == session.id }) {
-                await deliver(saved, automatic: true, alreadyCopied: copied)
-            }
-            showOverlayTemporarily()
+            try await finishTranscriptDelivery(session, attempt: attempt, automaticInsertion: automaticInsertion)
         } catch {
             let description = error is CancellationError ? "Processing stopped. Audio was retained for retry." : error.localizedDescription
             do {
@@ -312,6 +310,53 @@ final class AppController: ObservableObject {
             message = description
             await refreshHistory(); showOverlayTemporarily()
         }
+    }
+    func finishTranscriptDelivery(_ session: DictationSession, attempt: TranscriptAttempt, automaticInsertion: Bool) async throws {
+        // Retire the early-copy action before any automatic clipboard or insertion work.
+        cleanupPreview = nil
+        if originalTakenSessionID == session.id {
+            let note = sessions.first(where: { $0.id == session.id })?.cleanup?.changed == true
+                ? "Original copied · tidied text ready" : "Original copied · text ready"
+            try await store.update(session.id) { $0.delivery = .copied; $0.deliveryNote = note }
+            message = note
+            await refreshHistory()
+            showOverlayTemporarily()
+            return
+        }
+        let deliveryText = sessions.first(where: { $0.id == session.id })?.text ?? attempt.text
+        message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
+        var copied = false
+        if settings.shouldCopyTranscript(deliveryText, newRecording: automaticInsertion) {
+            transcriptPasteboard.clearContents()
+            copied = transcriptPasteboard.setString(deliveryText, forType: .string)
+            await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
+                : "Could not copy automatically. Use Copy text.", for: session.id)
+        }
+        if automaticInsertion && settings.automaticInsertion,
+           let saved = sessions.first(where: { $0.id == session.id }) {
+            await deliver(saved, automatic: true, alreadyCopied: copied)
+        }
+        showOverlayTemporarily()
+    }
+    func beginCleanupPresentation(_ session: DictationSession) {
+        activeSessionID = session.id
+        phase = .transcribing
+        cleanupPreview = session
+        tidyingWording = true
+        message = "Tidying wording · original ready to copy"
+    }
+    func copyCleanupOriginal() {
+        guard phase == .transcribing, let session = cleanupPreview,
+              let original = session.attempts.last?.text, !original.isEmpty else { return }
+        transcriptPasteboard.clearContents()
+        guard transcriptPasteboard.setString(original, forType: .string) else {
+            message = "Could not copy original · tidying continues"
+            return
+        }
+        // Taking the original is an explicit handoff: finishing cleanup must not
+        // replace this clipboard choice or paste a second version into another field.
+        originalTakenSessionID = session.id
+        message = "Original copied · tidying continues"
     }
     private func tidy(_ original: String, context: String, audioSeconds: Double) async throws -> TranscriptCleanup {
         func fallback(_ note: String) -> TranscriptCleanup {
@@ -357,8 +402,8 @@ final class AppController: ObservableObject {
     }
     func copyOriginal(_ session: DictationSession) {
         guard let original = session.cleanup?.original else { return }
-        NSPasteboard.general.clearContents()
-        if NSPasteboard.general.setString(original, forType: .string) {
+        transcriptPasteboard.clearContents()
+        if transcriptPasteboard.setString(original, forType: .string) {
             message = "Original copied"
         }
     }
@@ -466,8 +511,8 @@ final class AppController: ObservableObject {
     }
     func showLatestTranscript() { noSpeechDetected = false; deliveryConfirmed = false; showOverlayTemporarily() }
     func copy(_ session: DictationSession) {
-        NSPasteboard.general.clearContents()
-        guard NSPasteboard.general.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
+        transcriptPasteboard.clearContents()
+        guard transcriptPasteboard.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
         message = "Copied to clipboard"
         Task {
             do { try await store.update(session.id) { $0.delivery = .copied }; await refreshHistory() }

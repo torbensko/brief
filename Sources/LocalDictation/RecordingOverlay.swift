@@ -59,6 +59,18 @@ struct RecordingOverlay: View {
                 }.frame(height: 30).frame(maxWidth: .infinity)
                 Text("\(controller.recordingFinishHint) · microphone active")
                     .font(.caption).foregroundStyle(.secondary)
+            } else if controller.phase == .transcribing,
+                      let original = controller.cleanupPreview?.attempts.last?.text {
+                ScrollView(.vertical) {
+                    Text(original).font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(height: transcriptHeight(original))
+                HStack(spacing: 8) {
+                    Text(controller.message).font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Copy original") { controller.copyCleanupOriginal() }
+                }.buttonStyle(.bordered).controlSize(.small)
             } else if controller.phase == .idle, controller.deliveryConfirmed, controller.latestTranscript?.cleanup?.changed != true {
                 Label(controller.message, systemImage: "checkmark.circle.fill")
                     .font(.headline).foregroundStyle(.green)
