@@ -281,7 +281,7 @@ final class AppController: ObservableObject {
             }
             if settings.effectiveTidyWording && attempt.warnings.isEmpty {
                 message = "Tidying wording locally…"
-                let cleanup = try await tidy(attempt.text, context: session.vocabulary)
+                let cleanup = try await tidy(attempt.text, context: session.vocabulary, audioSeconds: session.duration)
                 try Task.checkCancellation()
                 try await store.update(session.id) { $0.cleanup = cleanup }
                 await refreshHistory()
@@ -313,22 +313,23 @@ final class AppController: ObservableObject {
             await refreshHistory(); showOverlayTemporarily()
         }
     }
-    private func tidy(_ original: String, context: String) async throws -> TranscriptCleanup {
+    private func tidy(_ original: String, context: String, audioSeconds: Double) async throws -> TranscriptCleanup {
         func fallback(_ note: String) -> TranscriptCleanup {
             TranscriptCleanup(original: original, text: original, model: CleanupPolicy.repository, note: note)
         }
         try Task.checkCancellation()
         guard CleanupPolicy.shouldAttempt(original) else {
-            return fallback("Long dictation · original kept without waiting for cleanup.")
+            return fallback("Text exceeds the 8,000-character cleanup input limit · original kept.")
         }
         guard let path = settings.cleanupModelDirectory, !path.isEmpty else {
             return fallback("Cleanup model not installed. Original kept.")
         }
         tidyingWording = true
         cleanupSkipped = false
+        let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
         let started = ContinuousClock.now
         let timeout = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .seconds(CleanupPolicy.maximumWaitSeconds)) } catch { return }
+            do { try await Task.sleep(for: .seconds(budget)) } catch { return }
             self?.cleanupWorker.stop()
         }
         defer { timeout.cancel(); cleanupWorker.stop(); tidyingWording = false }
@@ -336,7 +337,7 @@ final class AppController: ObservableObject {
             let response = try await cleanupWorker.request(WorkerRequest(operation: .cleanup,
                 modelDirectory: path, text: original, context: context))
             try Task.checkCancellation()
-            guard ContinuousClock.now - started < .seconds(CleanupPolicy.maximumWaitSeconds), !cleanupSkipped else {
+            guard ContinuousClock.now - started < .seconds(budget), !cleanupSkipped else {
                 return fallback("Cleanup skipped or time limit reached · original used.")
             }
             guard let result = response.cleanup, result.original == original else {

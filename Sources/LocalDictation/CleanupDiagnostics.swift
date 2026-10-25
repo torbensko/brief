@@ -13,19 +13,32 @@ import DictationCore
             guard let model = settings.cleanupModelDirectory else { throw DictationError.message("Install the cleanup model first.") }
             _ = try await speech.request(WorkerRequest(operation: .load, modelDirectory: settings.modelDirectory))
             let text = "I think it would be really good to add a copy button to Blint. The the text should remain available if the field loses focus. Do not change the project names or remove any conditions. "
-            for count in [1, 4, 1] {
+            let paragraphs = [
+                "The the settings page for Blint should explain which project is selected. Keep the project name visible while someone edits a specification, so they can check that their notes belong to the correct workspace. Do not change the existing keyboard shortcuts.",
+                "When a document has unsaved changes, show a small indicator beside its title. Saving should update that indicator only after the file has been written successfully. If the disk is unavailable, keep the draft in memory and explain what happened without closing the editor.",
+                "The project list needs a search field that matches names without requiring exact capitalization. Keep recently opened projects near the top, but make it possible to browse the full list alphabetically. Searching must not rename projects or modify their folders.",
+                "For the export flow, let people choose Markdown or plain text. Include the complete specification and preserve code blocks in the Markdown version. Show the destination before writing the file. If a file already exists, ask before replacing its contents.",
+                "I think the activity panel could show a short summary of the latest task. It might be useful to display whether the agent is working or waiting for an answer. Avoid showing a permanent log of every intermediate action, because the screen should remain easy to scan.",
+                "The documentation should describe how to create a project, attach a specification, and review the result. Use a small example with realistic project names. Explain what happens when the connection is lost, and make sure the recovery instructions match the actual interface.",
+                "Please keep the current JSON configuration format compatible with older versions. New optional fields should have sensible defaults when they are missing. Do not remove unknown fields when saving a document, because another tool might still need that information.",
+                "For accessibility, every icon button needs a descriptive label. The main editor should remain usable with the keyboard, and focus should move predictably when a dialog closes. Check the layout with larger text and with long project names rather than assuming everything fits.",
+                "A failed operation should leave the original document available. The retry action should repeat only the failed step, not create another project or send the same message twice. Keep the error explanation brief and provide enough detail for someone to decide what to do next.",
+                "Before releasing this change, check the normal save flow, a missing folder, and a read-only destination. The existing project names and file paths must remain unchanged. If any of those cases are uncertain, leave the behavior as it is and describe the remaining question."
+            ]
+            for (sample, audioSeconds) in [(text, 10.0), (paragraphs.prefix(5).joined(separator: "\n\n"), 120.0), (paragraphs.joined(separator: "\n\n"), 300.0)] {
+                let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
                 let started = ContinuousClock.now
                 let timeout = Task { @MainActor in
-                    do { try await Task.sleep(for: .seconds(10)) } catch { return }
+                    do { try await Task.sleep(for: .seconds(budget)) } catch { return }
                     editor.stop()
                 }
                 defer { timeout.cancel() }
                 let response = try await editor.request(WorkerRequest(operation: .cleanup,
-                    modelDirectory: model, text: String(repeating: text, count: count), context: "Blint"))
+                    modelDirectory: model, text: sample, context: "Blint"))
                 timeout.cancel()
-                guard response.cleanup != nil else { throw DictationError.message("Missing cleanup result.") }
+                guard let cleanup = response.cleanup else { throw DictationError.message("Missing cleanup result.") }
                 editor.stop() // Exercise the fresh helper used for each dictation.
-                print("Cleanup with recogniser loaded: \(text.count * count) characters, \(ContinuousClock.now - started)")
+                print("Cleanup with recogniser loaded: \(sample.count) characters, budget \(budget)s, \(ContinuousClock.now - started), changed: \(cleanup.changed), note: \(cleanup.note ?? "none")")
             }
             // A skipped edit must unblock immediately and allow the next request.
             let pending = Task { try await editor.request(WorkerRequest(operation: .cleanup,

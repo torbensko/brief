@@ -15,8 +15,12 @@ public struct TranscriptCleanup: Codable, Equatable, Sendable {
 
 public enum CleanupPolicy {
     public static let repository = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
-    public static let maximumCharacters = 1_200
-    public static let maximumWaitSeconds: Double = 3
+    // Bound model context, not ordinary message length: several minutes of speech fit.
+    public static let maximumCharacters = 8_000
+    public static func waitBudget(audioSeconds: Double) -> Double {
+        guard audioSeconds.isFinite, audioSeconds > 0 else { return 5 }
+        return min(20, max(5, audioSeconds * 0.10))
+    }
     public static func shouldAttempt(_ text: String) -> Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.count <= maximumCharacters
     }

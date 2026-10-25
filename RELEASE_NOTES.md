@@ -1,8 +1,5 @@
-# Brief 1.2.1
+# Brief 1.2.2
 
-- Fixed a communication stall between the speech and cleanup helpers that could leave Brief waiting for a completed edit.
-- The floating dictation panel shows edits by default with a compact Edits on/off control beside History for every new result, plus a single quiet status row with matching copy buttons.
-- Wording cleanup can add at most three seconds before Brief uses the original transcription.
-- **Use original now** skips cleanup immediately and continues normal delivery.
-- Long dictations bypass cleanup without loading the editing model.
-- Late or incomplete cleanup output never replaces text that has already been delivered.
+- Cleanup time now scales with the recording: 10% of its duration, with a five-second minimum and twenty-second maximum.
+- Longer dictations are no longer skipped at 1,200 characters. The cleanup input safety limit is 8,000 characters.
+- Use original now still skips cleanup immediately. Failed or late edits never replace delivered text.

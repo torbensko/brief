@@ -3,11 +3,19 @@ import Testing
 @testable import DictationCore
 
 @Suite("Conservative wording cleanup") struct CleanupTests {
-    @Test func cleanupBudgetIsShortAndLongInputsBypassIt() {
-        #expect(CleanupPolicy.maximumWaitSeconds == 3)
+    @Test func cleanupBudgetScalesWithRecordingDuration() {
+        for (duration, budget) in [(10.0, 5.0), (30, 5), (60, 6), (120, 12), (200, 20), (600, 20)] {
+            #expect(CleanupPolicy.waitBudget(audioSeconds: duration) == budget)
+        }
+        for invalid in [0.0, -1, Double.nan, Double.infinity] {
+            #expect(CleanupPolicy.waitBudget(audioSeconds: invalid) == 5)
+        }
+    }
+    @Test func ordinaryLongDictationsAreEligibleForCleanup() {
         #expect(!CleanupPolicy.shouldAttempt(" \n"))
-        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1200)))
-        #expect(!CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1201)))
+        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1201)))
+        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 8000)))
+        #expect(!CleanupPolicy.shouldAttempt(String(repeating: "a", count: 8001)))
     }
     @Test func rejectsLostQualifiersNumbersNamesAndLiterals() {
         for (original, edited) in [

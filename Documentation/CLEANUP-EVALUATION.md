@@ -8,7 +8,7 @@ Checked on 23 October 2026, on the development Apple Silicon Mac. These are synt
 - Temperature zero; independent editor and meaning-review contexts.
 - Structural checks reject changed quantities, coding literals, recognition terms, qualifiers, excessive edits and meaningful emphasis/politeness.
 - Intensifier removal is deliberately narrow: conversational forms such as “really good to”. This sacrifices some tidying to avoid weakening urgency.
-- Original recognition is persisted before cleanup. The three-second timeout/failure path keeps it; explicit cancellation prevents delivery.
+- Original recognition is persisted before cleanup. The recording-length-based timeout/failure path keeps it; explicit cancellation prevents delivery.
 
 ## Results
 
@@ -40,3 +40,10 @@ The app-level integration check reproduced the stall with the recogniser loaded:
 A subsequent development-build run restarting the cleanup helper between every request took 3.33, 5.10 and 3.48 seconds for 184, 736 and 184 characters respectively; skip/restart and subsequent speech requests passed. This demonstrates that the transport stall is resolved, while also showing why the delivery deadline remains necessary. The floating panel was visually checked with synthetic removed words: Wording tidied, highlighted strikethroughs, Show edits enabled and Copy original were all present.
 
 The optimized 1.2.1 candidate completed the same cold-helper integration sequence in 1.25, 1.59 and 1.19 seconds. Skip/restart also produced the expected real edit (removing the duplicate “the”), and the subsequent speech request succeeded. The final panel design places Edits on/off beside History and matches Copy text / Copy original in a single footer beside subdued delivery feedback.
+
+
+## Proportional cleanup budget (1.2.2, 25 October 2026)
+
+Real use showed the 1.2.1 fallback was too aggressive. The actual IPC stall was already fixed, so neither a universal three-second deadline nor a 1,200-character bypass was justified for ordinary longer dictations. Cleanup now receives 10% of the persisted recording duration, with a five-second floor and twenty-second ceiling. Retries use that same saved duration. The input safety limit is restored to 8,000 characters; it is an application resource guard, not the model's advertised context capacity. Use original now and the late-result rejection remain unchanged.
+
+74 core tests pass, including one- and two-minute budgets, the upper cap, malformed durations, and inputs beyond the old short cutoff. The app transport diagnostic now runs 184-, 1,314- and 2,680-character synthetic transcripts (the longer cases contain varied specification paragraphs) with the speech recogniser loaded and a fresh editing helper for each clip. It also checks cancellation and restart. The optimized candidate returned these cases in 1.18, 3.03 and 5.34 seconds respectively, within their 5-, 12- and 20-second budgets. These synthetic cases test latency and transport; they do not establish meaning-preservation accuracy for all long dictations.
