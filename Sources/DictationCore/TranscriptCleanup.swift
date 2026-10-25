@@ -15,14 +15,12 @@ public struct TranscriptCleanup: Codable, Equatable, Sendable {
 
 public enum CleanupPolicy {
     public static let repository = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
-    // Bound model context, not ordinary message length: several minutes of speech fit.
-    public static let maximumCharacters = 8_000
     public static func waitBudget(audioSeconds: Double) -> Double {
-        guard audioSeconds.isFinite, audioSeconds > 0 else { return 5 }
-        return min(20, max(5, audioSeconds * 0.10))
+        guard audioSeconds.isFinite, audioSeconds > 0 else { return 0 }
+        return audioSeconds / 10
     }
     public static func shouldAttempt(_ text: String) -> Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.count <= maximumCharacters
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     public static let instructions = """
     You are a conservative copy editor for dictated messages and software specifications.

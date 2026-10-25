@@ -319,14 +319,15 @@ final class AppController: ObservableObject {
         }
         try Task.checkCancellation()
         guard CleanupPolicy.shouldAttempt(original) else {
-            return fallback("Text exceeds the 8,000-character cleanup input limit · original kept.")
+            return fallback("No text to tidy.")
         }
         guard let path = settings.cleanupModelDirectory, !path.isEmpty else {
             return fallback("Cleanup model not installed. Original kept.")
         }
+        let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
+        guard budget > 0 else { return fallback("Recording duration unavailable · original kept.") }
         tidyingWording = true
         cleanupSkipped = false
-        let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
         let started = ContinuousClock.now
         let timeout = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(budget)) } catch { return }

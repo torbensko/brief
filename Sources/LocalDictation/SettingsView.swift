@@ -84,7 +84,7 @@ struct SettingsView: View {
                     .disabled(draft.cleanupModelDirectory == nil)
                 Text("An optional local editing pass removes stutters and empty filler, and fixes obvious grammar. Uncertain wording is left alone. Changes are highlighted; the original stays available in Recent.")
                     .font(.caption).foregroundStyle(.secondary)
-                Text(draft.cleanupModelDirectory == nil ? "Download the separate cleanup model once (about 2.5 GB). No messages are uploaded." : "Cleanup model installed · works offline. Allows 10% of recording time for cleanup, with a five-second minimum and twenty-second maximum.")
+                Text(draft.cleanupModelDirectory == nil ? "Download the separate cleanup model once (about 2.5 GB). No messages are uploaded." : "Cleanup model installed · works offline. Cleanup can use up to 10% of recording time. No fixed minimum, maximum, or message-length cutoff.")
                     .font(.caption).foregroundStyle(.secondary)
                 if draft.cleanupModelDirectory == nil {
                     Button("Download cleanup model and enable") { controller.downloadCleanupModel() }.disabled(controller.isBusy)

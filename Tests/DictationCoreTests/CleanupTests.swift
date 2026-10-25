@@ -4,18 +4,19 @@ import Testing
 
 @Suite("Conservative wording cleanup") struct CleanupTests {
     @Test func cleanupBudgetScalesWithRecordingDuration() {
-        for (duration, budget) in [(10.0, 5.0), (30, 5), (60, 6), (120, 12), (200, 20), (600, 20)] {
+        for (duration, budget) in [(1.5, 0.15), (10, 1), (30, 3), (60, 6), (120, 12), (300, 30), (600, 60), (3600, 360)] {
             #expect(CleanupPolicy.waitBudget(audioSeconds: duration) == budget)
         }
         for invalid in [0.0, -1, Double.nan, Double.infinity] {
-            #expect(CleanupPolicy.waitBudget(audioSeconds: invalid) == 5)
+            #expect(CleanupPolicy.waitBudget(audioSeconds: invalid) == 0)
         }
     }
     @Test func ordinaryLongDictationsAreEligibleForCleanup() {
         #expect(!CleanupPolicy.shouldAttempt(" \n"))
         #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 1201)))
         #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 8000)))
-        #expect(!CleanupPolicy.shouldAttempt(String(repeating: "a", count: 8001)))
+        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 8001)))
+        #expect(CleanupPolicy.shouldAttempt(String(repeating: "a", count: 20000)))
     }
     @Test func rejectsLostQualifiersNumbersNamesAndLiterals() {
         for (original, edited) in [

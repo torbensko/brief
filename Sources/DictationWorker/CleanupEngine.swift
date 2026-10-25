@@ -12,7 +12,6 @@ final class CleanupEngine {
             TranscriptCleanup(original: original, text: original, model: CleanupPolicy.repository, note: note)
         }
         guard !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return unchanged("No text to tidy.") }
-        guard original.count <= CleanupPolicy.maximumCharacters else { return unchanged("Long dictation left unchanged.") }
         let folder = URL(fileURLWithPath: request.modelDirectory)
         try ModelDirectory.validate(folder)
         // Scope the editor weights to this pass so they do not remain resident alongside ASR.
@@ -21,7 +20,7 @@ final class CleanupEngine {
             .system(CleanupPolicy.instructions), .user(original)
         ]))
         let stream = try await container.generate(input: input,
-            parameters: GenerateParameters(maxTokens: min(6144, max(512, original.utf8.count)), temperature: 0))
+            parameters: GenerateParameters(maxTokens: max(512, original.utf8.count), temperature: 0))
         var output = "", finished = false
         for await event in stream {
             try Task.checkCancellation()

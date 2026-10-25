@@ -25,7 +25,10 @@ import DictationCore
                 "A failed operation should leave the original document available. The retry action should repeat only the failed step, not create another project or send the same message twice. Keep the error explanation brief and provide enough detail for someone to decide what to do next.",
                 "Before releasing this change, check the normal save flow, a missing folder, and a read-only destination. The existing project names and file paths must remain unchanged. If any of those cases are uncertain, leave the behavior as it is and describe the remaining question."
             ]
-            for (sample, audioSeconds) in [(text, 10.0), (paragraphs.prefix(5).joined(separator: "\n\n"), 120.0), (paragraphs.joined(separator: "\n\n"), 300.0)] {
+            let longSpecification = ["Atlas", "Beacon", "Cobalt", "Delta"].map {
+                "For project \($0):\n\n" + paragraphs.joined(separator: "\n\n")
+            }.joined(separator: "\n\n")
+            for (sample, audioSeconds) in [(text, 30.0), (paragraphs.prefix(5).joined(separator: "\n\n"), 120.0), (paragraphs.joined(separator: "\n\n"), 300.0), (longSpecification, 600.0)] {
                 let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
                 let started = ContinuousClock.now
                 let timeout = Task { @MainActor in
