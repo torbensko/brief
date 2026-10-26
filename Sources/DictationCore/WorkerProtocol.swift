@@ -5,6 +5,7 @@ public struct WorkerRequest: Codable, Sendable {
     public var id: UUID
     public var operation: Operation
     public var modelDirectory: String
+    public var cleanupLimits: CleanupLimits?
     public var text: String?
     public var audioPath: String?
     public var sampleRate: Double?
@@ -13,7 +14,8 @@ public struct WorkerRequest: Codable, Sendable {
     public var tokenBudgetMultiplier: Int
     public init(id: UUID = UUID(), operation: Operation, modelDirectory: String,
                 text: String? = nil, audioPath: String? = nil, sampleRate: Double? = nil, context: String = "",
-                language: String = "English", tokenBudgetMultiplier: Int = 1) {
+                language: String = "English", tokenBudgetMultiplier: Int = 1, cleanupLimits: CleanupLimits? = nil) {
+        self.cleanupLimits = cleanupLimits
         self.id = id; self.operation = operation; self.modelDirectory = modelDirectory
         self.text = text; self.audioPath = audioPath; self.sampleRate = sampleRate; self.context = context
         self.language = language; self.tokenBudgetMultiplier = tokenBudgetMultiplier

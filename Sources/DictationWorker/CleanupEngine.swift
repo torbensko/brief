@@ -32,7 +32,7 @@ final class CleanupEngine {
         }
         guard finished else { return unchanged("Cleanup did not finish; original kept.") }
         let candidate = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let reason = CleanupPolicy.rejection(original: original, candidate: candidate, protectedTerms: request.context) {
+        if let reason = CleanupPolicy.rejection(original: original, candidate: candidate, protectedTerms: request.context, limits: request.cleanupLimits ?? CleanupLimits()) {
             return unchanged(reason + " Original kept.")
         }
         if candidate != original {

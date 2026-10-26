@@ -290,7 +290,7 @@ final class AppController: ObservableObject {
             }
             if settings.effectiveTidyWording && attempt.warnings.isEmpty {
                 if let saved = sessions.first(where: { $0.id == session.id }) {
-                    beginCleanupPresentation(saved)
+                    beginCleanupPresentation(saved, automaticallyCopy: automaticInsertion)
                 }
                 let cleanup = try await tidy(attempt.text, context: session.vocabulary, audioSeconds: session.duration)
                 try Task.checkCancellation()
@@ -338,12 +338,18 @@ final class AppController: ObservableObject {
         }
         showOverlayTemporarily()
     }
-    func beginCleanupPresentation(_ session: DictationSession) {
+    func beginCleanupPresentation(_ session: DictationSession, automaticallyCopy: Bool = false) {
         activeSessionID = session.id
         phase = .transcribing
         cleanupPreview = session
         tidyingWording = true
         message = "Tidying wording · original ready to copy"
+        if let original = session.attempts.last?.text,
+           settings.shouldCopyTranscript(original, newRecording: automaticallyCopy) {
+            transcriptPasteboard.clearContents()
+            let copied = transcriptPasteboard.setString(original, forType: .string)
+            message = copied ? "Tidying wording · original on clipboard" : "Tidying wording · could not copy original"
+        }
     }
     func copyCleanupOriginal() {
         guard phase == .transcribing, let session = cleanupPreview,
@@ -381,7 +387,7 @@ final class AppController: ObservableObject {
         defer { timeout.cancel(); cleanupWorker.stop(); tidyingWording = false }
         do {
             let response = try await cleanupWorker.request(WorkerRequest(operation: .cleanup,
-                modelDirectory: path, text: original, context: context))
+                modelDirectory: path, text: original, context: context, cleanupLimits: settings.effectiveCleanupLimits))
             try Task.checkCancellation()
             guard ContinuousClock.now - started < .seconds(budget), !cleanupSkipped else {
                 return fallback("Cleanup skipped or time limit reached · original used.")

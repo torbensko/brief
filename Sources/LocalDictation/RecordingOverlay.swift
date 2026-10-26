@@ -50,7 +50,10 @@ struct RecordingOverlay: View {
                         .accessibilityLabel("Close dictation panel")
                 }
             }
-            PanelDragHandle().frame(width: 410, height: 24).help("Drag to move this panel")
+            DictationProgress(active: progressStage)
+                .frame(width: 410, height: 24)
+                .overlay { PanelDragHandle().accessibilityHidden(true) }
+                .help("Drag to move this panel")
             if controller.phase == .recording {
                 HStack(alignment: .center, spacing: 4) {
                     ForEach(Array(controller.levels.enumerated()), id: \.offset) { _, level in
@@ -122,12 +125,43 @@ struct RecordingOverlay: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.quaternary))
     }
+    private var progressStage: String? {
+        switch controller.phase {
+        case .preparing, .recording: return "Record"
+        case .stopping: return "Transcribe"
+        case .transcribing: return controller.tidyingWording || controller.cleanupPreview != nil ? "Clean up" : "Transcribe"
+        case .idle:
+            return controller.errorMessage == nil && (controller.latestTranscript != nil || controller.noSpeechDetected) ? "Complete" : nil
+        case .loading, .downloading: return nil
+        }
+    }
     private func transcriptHeight(_ text: String) -> CGFloat {
         let bounds = (text as NSString).boundingRect(
             with: NSSize(width: 400, height: CGFloat.greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: NSFont.preferredFont(forTextStyle: .callout)])
         return min(120, max(20, ceil(bounds.height) + 4))
+    }
+}
+
+/// Highlight only the current phase: reaching Complete does not imply cleanup ran
+/// or that insertion succeeded. Those outcomes remain in the result's status text.
+private struct DictationProgress: View {
+    let active: String?
+    private let stages = ["Record", "Transcribe", "Clean up", "Complete"]
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(stages, id: \.self) { stage in
+                Text(stage)
+                    .font(.caption.weight(stage == active ? .semibold : .regular))
+                    .foregroundStyle(stage == active ? Color.accentColor : Color.secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(stage == active ? Color.accentColor.opacity(0.14) : Color.clear, in: Capsule())
+                    .accessibilityLabel(stage == active ? "\(stage), current phase" : stage)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -185,10 +219,6 @@ private final class PanelGrip: NSView {
     private var windowStart: NSPoint?
     override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override func draw(_ dirtyRect: NSRect) {
-        NSColor.secondaryLabelColor.withAlphaComponent(0.5).setFill()
-        NSBezierPath(roundedRect: NSRect(x: bounds.midX - 24, y: bounds.midY - 2, width: 48, height: 4), xRadius: 2, yRadius: 2).fill()
-    }
     override func mouseDown(with event: NSEvent) {
         dragStart = window?.convertPoint(toScreen: event.locationInWindow)
         windowStart = window?.frame.origin

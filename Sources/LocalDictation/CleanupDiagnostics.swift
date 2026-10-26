@@ -24,7 +24,12 @@ import DictationCore
             try await controller.store.appendAttempt(attempt, to: session.id)
             await controller.refreshHistory()
             guard let saved = controller.sessions.first(where: { $0.id == session.id }) else { throw DictationError.message("Missing test session.") }
-            controller.beginCleanupPresentation(saved)
+            pasteboard.clearContents()
+            pasteboard.setString("Unrelated earlier clipboard content", forType: .string)
+            controller.beginCleanupPresentation(saved, automaticallyCopy: true)
+            guard pasteboard.string(forType: .string) == attempt.text else {
+                throw DictationError.message("Original was not automatically copied before cleanup.")
+            }
             if takeOriginal {
                 controller.copyCleanupOriginal()
                 guard pasteboard.string(forType: .string) == attempt.text else { throw DictationError.message("Original was not available while tidying.") }
@@ -47,7 +52,25 @@ import DictationCore
             controller.copyCleanupOriginal() // A stale button action must do nothing.
             guard pasteboard.string(forType: .string) == expected else { throw DictationError.message("Stale preview copied old text.") }
         }
-        print("Early original copy, newer clipboard preservation, completed edit, and next-clip automatic copy passed.")
+        var disabled = settings
+        disabled.automaticClipboardCopy = false
+        let disabledRoot = root.appendingPathComponent("disabled-copy")
+        try FileManager.default.createDirectory(at: disabledRoot, withIntermediateDirectories: true)
+        try SettingsFile.save(disabled, to: disabledRoot.appendingPathComponent("settings.json"))
+        let disabledController = try AppController(storageRoot: disabledRoot, transcriptPasteboard: pasteboard)
+        if let saved = controller.latestTranscript {
+            pasteboard.clearContents()
+            pasteboard.setString("Keep clipboard", forType: .string)
+            disabledController.beginCleanupPresentation(saved, automaticallyCopy: true)
+            guard pasteboard.string(forType: .string) == "Keep clipboard" else {
+                throw DictationError.message("Early copy ignored the clipboard setting.")
+            }
+            controller.beginCleanupPresentation(saved, automaticallyCopy: false)
+            guard pasteboard.string(forType: .string) == "Keep clipboard" else {
+                throw DictationError.message("A retry or preview changed the clipboard.")
+            }
+        }
+        print("Automatic original copy, disabled copy preference, early original copy, newer clipboard preservation, completed edit, and next-clip automatic copy passed.")
     }
     static func run() async -> Int32 {
         let speech = WorkerClient(), editor = WorkerClient()

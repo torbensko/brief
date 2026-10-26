@@ -3,6 +3,43 @@ import Testing
 @testable import DictationCore
 
 @Suite("Conservative wording cleanup") struct CleanupTests {
+    @Test func configurableEditAllowanceAcceptsBoundaryAndRejectsAboveIt() {
+        let original = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango"
+        let words = original.split(separator: " ").map(String.init)
+        let boundary = (Array(repeating: "edited", count: 8) + words.dropFirst(8)).joined(separator: " ")
+        let above = (Array(repeating: "edited", count: 9) + words.dropFirst(9)).joined(separator: " ")
+        #expect(CleanupPolicy.rejection(original: original, candidate: boundary, protectedTerms: "") == nil)
+        #expect(CleanupPolicy.rejection(original: original, candidate: above, protectedTerms: "")?.contains("80% edit") == true)
+        #expect(CleanupPolicy.rejection(original: original, candidate: boundary, protectedTerms: "", limits: CleanupLimits(editPercent: 40)) != nil)
+        #expect(CleanupPolicy.rejection(original: original, candidate: above, protectedTerms: "", limits: CleanupLimits(editPercent: 90)) == nil)
+    }
+    @Test func configurableGrowthAllowanceAndShortMessageFloor() {
+        let original = String(repeating: "a", count: 200)
+        #expect(CleanupPolicy.rejection(original: original, candidate: String(repeating: "b", count: 260), protectedTerms: "") == nil)
+        #expect(CleanupPolicy.rejection(original: original, candidate: String(repeating: "b", count: 261), protectedTerms: "")?.contains("30% text growth") == true)
+        #expect(CleanupPolicy.rejection(original: original, candidate: String(repeating: "b", count: 280), protectedTerms: "", limits: CleanupLimits(growthPercent: 40)) == nil)
+        #expect(CleanupPolicy.rejection(original: "a", candidate: String(repeating: "b", count: 31), protectedTerms: "", limits: CleanupLimits(editPercent: 0, growthPercent: 0)) == nil)
+        #expect(throws: DictationError.self) { try CleanupLimits(editPercent: -1).validate() }
+        #expect(throws: DictationError.self) { try CleanupLimits(growthPercent: -1).validate() }
+    }
+    @Test func disablingSizeLimitsStillProtectsMeaning() {
+        let unlimited = CleanupLimits(enabled: false)
+        #expect(CleanupPolicy.rejection(original: "hello", candidate: String(repeating: "hello ", count: 30), protectedTerms: "", limits: unlimited) == nil)
+        #expect(CleanupPolicy.rejection(original: "Do not delete Blint.", candidate: "Delete Blint.", protectedTerms: "Blint", limits: unlimited) == "Cleanup changed a qualifier or condition.")
+    }
+    @Test func limitsMigrateAndTravelToWorker() throws {
+        let encoder = JSONEncoder(), decoder = JSONDecoder()
+        let legacy = try decoder.decode(AppSettings.self, from: encoder.encode(AppSettings()))
+        #expect(legacy.effectiveCleanupLimits == CleanupLimits(editPercent: 80, growthPercent: 30))
+        var custom = legacy
+        custom.cleanupLimits = CleanupLimits(editPercent: 120, growthPercent: 45, enabled: false)
+        let restored = try decoder.decode(AppSettings.self, from: encoder.encode(custom))
+        #expect(restored.effectiveCleanupLimits == custom.cleanupLimits)
+        let request = WorkerRequest(operation: .cleanup, modelDirectory: "test", cleanupLimits: restored.effectiveCleanupLimits)
+        let decoded = try decoder.decode(WorkerRequest.self, from: encoder.encode(request))
+        #expect(decoded.cleanupLimits == custom.cleanupLimits)
+        #expect(CleanupPolicy.rejection(original: "Wait 15 minutes.", candidate: "Wait 5 minutes.", protectedTerms: "", limits: decoded.cleanupLimits!) == "Cleanup changed a number.")
+    }
     @Test func cleanupBudgetScalesWithRecordingDuration() {
         for (duration, budget) in [(1.5, 0.15), (10, 1), (30, 3), (60, 6), (120, 12), (300, 30), (600, 60), (3600, 360)] {
             #expect(CleanupPolicy.waitBudget(audioSeconds: duration) == budget)

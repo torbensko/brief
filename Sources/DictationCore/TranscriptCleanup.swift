@@ -13,6 +13,22 @@ public struct TranscriptCleanup: Codable, Equatable, Sendable {
     }
 }
 
+public struct CleanupLimits: Codable, Equatable, Sendable {
+    public var enabled: Bool
+    public var editPercent: Int
+    public var growthPercent: Int
+    public init(editPercent: Int = 80, growthPercent: Int = 30, enabled: Bool = true) {
+        self.enabled = enabled
+        self.editPercent = editPercent
+        self.growthPercent = growthPercent
+    }
+    public func validate() throws {
+        guard editPercent >= 0, growthPercent >= 0 else {
+            throw DictationError.message("Cleanup percentages must be zero or greater.")
+        }
+    }
+}
+
 public enum CleanupPolicy {
     public static let repository = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
     public static func waitBudget(audioSeconds: Double) -> Double {
@@ -48,15 +64,20 @@ public enum CleanupPolicy {
 
     // These checks catch obvious damage; they cannot prove semantic equivalence.
     // An uncertain result always falls back to the saved recognition text.
-    public static func rejection(original: String, candidate: String, protectedTerms: String) -> String? {
+    public static func rejection(original: String, candidate: String, protectedTerms: String, limits: CleanupLimits = CleanupLimits()) -> String? {
         let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "Cleanup returned no text." }
-        let old = TranscriptDiff.tokens(original).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let new = TranscriptDiff.tokens(trimmed).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let edits = new.difference(from: old).count
-        guard edits <= max(6, Int(Double(old.count) * 0.4)),
-              trimmed.count <= max(original.count + 30, Int(Double(original.count) * 1.15)) else {
-            return "Cleanup proposed too many changes."
+        if limits.enabled {
+            let old = TranscriptDiff.tokens(original).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            let new = TranscriptDiff.tokens(trimmed).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            let edits = new.difference(from: old).count
+            guard Double(edits) <= max(6, Double(old.count) * Double(limits.editPercent) / 100) else {
+                return "Cleanup exceeded the \(limits.editPercent)% edit allowance (minimum 6 edits). Adjust in Settings → Wording cleanup."
+            }
+            guard Double(trimmed.count) <= max(Double(original.count) + 30,
+                  Double(original.count) * (1 + Double(limits.growthPercent) / 100)) else {
+                return "Cleanup exceeded the \(limits.growthPercent)% text growth allowance (minimum 30 extra characters). Adjust in Settings → Wording cleanup."
+            }
         }
         let quantities = #"\d+(?:[.,:/-]\d+)*"#
         guard matches(quantities, original) == matches(quantities, trimmed) else { return "Cleanup changed a number." }

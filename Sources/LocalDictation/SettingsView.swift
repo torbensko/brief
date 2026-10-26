@@ -86,6 +86,26 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Text(draft.cleanupModelDirectory == nil ? "Download the separate cleanup model once (about 2.5 GB). No messages are uploaded." : "Cleanup model installed · works offline. Cleanup can use up to 10% of recording time. No fixed minimum, maximum, or message-length cutoff.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Limit cleanup size", isOn: Binding(
+                    get: { draft.effectiveCleanupLimits.enabled },
+                    set: { var limits = draft.effectiveCleanupLimits; limits.enabled = $0; draft.cleanupLimits = limits }))
+                HStack {
+                    Text("Edit allowance (%)")
+                    TextField("80", value: Binding(
+                        get: { draft.effectiveCleanupLimits.editPercent },
+                        set: { var limits = draft.effectiveCleanupLimits; limits.editPercent = $0; draft.cleanupLimits = limits }), format: .number)
+                        .labelsHidden().textFieldStyle(.roundedBorder)
+                        .frame(width: 70).accessibilityLabel("Edit allowance percent")
+                    Text("Text growth (%)")
+                    TextField("30", value: Binding(
+                        get: { draft.effectiveCleanupLimits.growthPercent },
+                        set: { var limits = draft.effectiveCleanupLimits; limits.growthPercent = $0; draft.cleanupLimits = limits }), format: .number)
+                        .labelsHidden().textFieldStyle(.roundedBorder)
+                        .frame(width: 70).accessibilityLabel("Text growth percent")
+                }
+                .disabled(!draft.effectiveCleanupLimits.enabled)
+                Text("Turn off to remove size/count limits. Higher allowances accept larger edits. Words and punctuation count; replacing one counts as two edits. Short messages allow at least 6 edits and 30 extra characters. Exceeding either allowance keeps the original. Meaning checks still apply.")
+                    .font(.caption).foregroundStyle(.secondary)
                 if draft.cleanupModelDirectory == nil {
                     Button("Download cleanup model and enable") { controller.downloadCleanupModel() }.disabled(controller.isBusy)
                 }

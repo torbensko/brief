@@ -122,6 +122,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var repositoryVocabulary: RepositoryVocabulary?
     public var selectedProfileID: UUID?
     public var modelDirectory: String = ""
+    public var cleanupLimits: CleanupLimits?
+    public var effectiveCleanupLimits: CleanupLimits { cleanupLimits ?? CleanupLimits() }
     public var tidyWording: Bool?
     public var cleanupModelDirectory: String?
     public var effectiveTidyWording: Bool { tidyWording ?? false }
@@ -150,6 +152,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
     public func validate() throws {
         try effectiveRecoveryPolicy.validate()
+        try effectiveCleanupLimits.validate()
         let bindings = [recordShortcut, insertShortcut, historyShortcut]
         guard Set(bindings.map { "\($0.keyCode):\($0.modifiers)" }).count == 3 else {
             throw DictationError.message("The three shortcuts must be different.")
