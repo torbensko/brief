@@ -229,6 +229,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// `brief://record`, opened by another app (Blint's dictation button): the same as the record shortcut,
+    /// so a recording starts, or the one in progress finishes, and the text goes to the field that had focus
+    /// when the URL was opened. The caller must open the URL without activating Brief, or the focused field
+    /// would no longer be its own.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where BriefURL.isRecord(url) { controller?.toggleRecording() }
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating, let controller else { return .terminateNow }
         terminating = true
@@ -238,5 +246,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             sender.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
+    }
+}
+
+/// The URLs Brief answers. `brief://record` is the only one: it is what Info.plist's CFBundleURLTypes advertises,
+/// and other apps read that entry to know this build takes it.
+enum BriefURL {
+    static let scheme = "brief"
+    static func isRecord(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == scheme else { return false }
+        let name = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return name.lowercased() == "record"
     }
 }

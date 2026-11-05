@@ -45,6 +45,8 @@ The first build downloads Swift dependencies. The script packages both executabl
 
 The waveform icon in the menu bar opens Record, Insert Pending, Recent dictation, Settings, and Quit. Settings opens automatically until a model folder is configured. Use the packaged app rather than `swift run`, since transcription requires the embedded worker and resources.
 
+Other apps can start a recording by opening `brief://record` (`open -g brief://record`, or `NSWorkspace` without activating Brief). It does what the record shortcut does, including finishing a recording in progress, and the text goes to the field that had focus when the URL was opened; Blint's dictation button uses it when Brief is installed.
+
 ## Updates and startup
 
 Install Brief in Applications. Settings → General includes **Start at login**, **Automatically check for updates**, **Automatically download and install updates**, and **Check for Updates**. Startup/update choices apply immediately. Login startup is off by default; if macOS requires approval, Brief links to Login Items. Automatic updates are on by default and wait for active dictation work before relaunching.
