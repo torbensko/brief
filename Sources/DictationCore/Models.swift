@@ -80,6 +80,7 @@ public struct DictationSession: Codable, Identifiable, Equatable, Sendable {
     public var editedText: String?
     public var note: String?
     public var deliveryNote: String?
+    public var clipboardGroupID: UUID?
     public var audioDeleted: Bool = false
     public var duration: Double { sampleRate > 0 ? Double(frameCount) / sampleRate : 0 }
     public var text: String { editedText ?? cleanup?.text ?? attempts.last?.text ?? "" }

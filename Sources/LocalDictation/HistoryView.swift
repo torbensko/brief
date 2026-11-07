@@ -24,7 +24,7 @@ struct HistoryView: View {
                 Spacer()
                 Button(controller.phase == .recording ? "Stop recording" : "Record", systemImage: controller.phase == .recording ? "stop.fill" : "mic.fill") {
                     controller.toggleRecording()
-                }.disabled(controller.isBusy && controller.phase != .recording)
+                }.disabled(!controller.canStartRecording && controller.phase != .recording)
                 Button("Settings", systemImage: "gearshape") { controller.showSettings?() }
                     .labelStyle(.iconOnly).help("Settings")
             }.padding(20)
@@ -33,7 +33,7 @@ struct HistoryView: View {
                 Picker("Retention", selection: Binding(get: { controller.settings.effectiveRecoveryPolicy.mode }, set: {
                     controller.setRecoveryPolicy(RecoveryPolicy(mode: $0, value: $0 == .count ? 1 : 5))
                 })) {
-                    Text("last entries").tag(RecoveryPolicy.Mode.count)
+                    Text("last dictations").tag(RecoveryPolicy.Mode.count)
                     Text("for minutes").tag(RecoveryPolicy.Mode.minutes)
                 }.labelsHidden().frame(width: 140)
                 Stepper(value: Binding(get: { controller.settings.effectiveRecoveryPolicy.value }, set: {
@@ -96,7 +96,7 @@ struct HistoryView: View {
                 Circle().fill(controller.phase == .recording ? Color.red : Color.secondary).frame(width: 7, height: 7)
                 Text(controller.message).font(.caption).lineLimit(2)
                 Spacer()
-                if controller.phase == .transcribing || controller.phase == .loading {
+                if controller.hasProcessing || controller.phase == .loading {
                     Button("Cancel processing") { controller.cancelProcessing() }.controlSize(.small)
                 }
                 Text(controller.settings.insertShortcut.display + " inserts pending")
@@ -238,9 +238,4 @@ private struct TranscriptDetail: View {
         Text(title).font(.caption2.weight(.medium)).padding(.horizontal, 8).padding(.vertical, 4)
             .background(.quaternary, in: Capsule())
     }
-}
-
-func duration(_ seconds: Double) -> String {
-    let value = max(0, Int(seconds.isFinite ? seconds : 0))
-    return String(format: "%d:%02d", value / 60, value % 60)
 }

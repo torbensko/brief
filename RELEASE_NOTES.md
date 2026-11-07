@@ -1,7 +1,7 @@
-# Brief 1.2.4
+# Brief 1.3.0
 
-- A Limit cleanup size switch allows these count/size checks to be turned off, while retaining meaning checks.
-- The original is automatically copied as soon as recognition finishes when automatic clipboard copying is enabled. Cleanup continues without pasting; normal delivery happens at completion.
-- Adjustable cleanup limits in Settings → General → Wording cleanup, starting at 80% edits and 30% text growth. Existing installations receive these defaults; saved custom limits persist.
-- Rejection feedback identifies which allowance was exceeded and points to Settings. Short-message allowances remain at least 6 edits and 30 extra characters, now explained in Settings. Separate meaning checks and the 10%-of-recording-time budget remain unchanged.
-- Compact Record, Transcribe, Clean up and Complete indicators replace the panel’s dash. Drag this row to move the panel; the original stays available while cleanup runs, then the result shows highlighted edits.
+- Keep recording while earlier clips are still processing. Each recording gets its own cell in the panel and is processed in the order it was captured. Overlapping recordings share one clipboard entry, with Copy all for the combined text.
+- Wording cleanup now reviews changed passages separately, so one rejected edit no longer discards the safe edits around it. The panel says when some passages were kept as recorded.
+- Other apps can start or finish a recording by opening `brief://record`, which behaves like the record shortcut.
+- A redesigned progress strip follows your system appearance and accent colour, with ticks for finished stages and a coloured pill for the current one.
+- The microphone level display is now centred in its cell. Recording cells keep the same height until the result is ready, then expand smoothly to fit the text.

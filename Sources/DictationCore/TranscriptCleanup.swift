@@ -71,8 +71,9 @@ public enum CleanupPolicy {
             let old = TranscriptDiff.tokens(original).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             let new = TranscriptDiff.tokens(trimmed).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             let edits = new.difference(from: old).count
-            guard Double(edits) <= max(6, Double(old.count) * Double(limits.editPercent) / 100) else {
-                return "Cleanup exceeded the \(limits.editPercent)% edit allowance (minimum 6 edits). Adjust in Settings → Wording cleanup."
+            let allowed = max(6, Double(old.count) * Double(limits.editPercent) / 100)
+            guard Double(edits) <= allowed else {
+                return "Cleanup exceeded the \(limits.editPercent)% edit allowance: \(edits) edits, \(String(format: "%.0f", allowed.rounded(.down))) allowed for \(old.count) words and punctuation tokens. Adjust in Settings → Wording cleanup."
             }
             guard Double(trimmed.count) <= max(Double(original.count) + 30,
                   Double(original.count) * (1 + Double(limits.growthPercent) / 100)) else {
@@ -87,7 +88,11 @@ public enum CleanupPolicy {
         func collapsed(_ words: [String]) -> [String] {
             words.reduce(into: []) { if $0.last != $1 || !["i think", "i believe"].contains($1) { $0.append($1) } }
         }
-        guard collapsed(matches(protected, original.lowercased())) == collapsed(matches(protected, trimmed.lowercased())) else {
+        func qualifiers(_ text: String) -> [String] {
+            // Typographic apostrophes do not change a contraction's meaning.
+            collapsed(matches(protected, text.replacingOccurrences(of: "’", with: "'").lowercased()))
+        }
+        guard qualifiers(original) == qualifiers(trimmed) else {
             return "Cleanup changed a qualifier or condition."
         }
         // Intensifiers often convey urgency. Only allow their removal in a narrow,
@@ -110,6 +115,69 @@ public enum CleanupPolicy {
             Range($0.range, in: text).map { String(text[$0]) }
         }
     }
+}
+
+/// Keep edits independently reviewable, using unchanged sentence/paragraph boundaries
+/// as anchors. A proposal crossing a boundary stays together, so text is never dropped
+/// or paired with the wrong original when a sentence is merged, added or removed.
+public struct CleanupDraft: Sendable {
+    public struct Passage: Equatable, Sendable {
+        public var original: String
+        public var candidate: String
+        public var changed: Bool { original != candidate }
+    }
+    public let original: String
+    public let passages: [Passage]
+    private var accepted: [String]
+    public var text: String { accepted.joined() }
+
+    public init(original: String, candidate: String) {
+        self.original = original
+        let boundary = try! NSRegularExpression(pattern: #"[.!?。！？](?=\s|$)|\n[\t ]*\n"#)
+        func boundaries(_ text: String) -> Set<Int> {
+            Set(boundary.matches(in: text, range: NSRange(text.startIndex..., in: text)).map { NSMaxRange($0.range) })
+        }
+        let originalBoundaries = boundaries(original), candidateBoundaries = boundaries(candidate)
+        let anchors = try! NSRegularExpression(pattern: #"[.!?。！？]|\n[\t ]*\n"#)
+        var originalOffset = 0, candidateOffset = 0
+        var passages: [Passage] = [], before = "", after = ""
+        func flush() {
+            guard !before.isEmpty || !after.isEmpty else { return }
+            passages.append(Passage(original: before, candidate: after))
+            before = ""; after = ""
+        }
+        for part in TranscriptDiff.parts(original: original, revised: candidate) {
+            switch part.kind {
+            case .removed: before += part.text; originalOffset += part.text.utf16.count
+            case .added: after += part.text; candidateOffset += part.text.utf16.count
+            case .unchanged:
+                var start = part.text.startIndex
+                for match in anchors.matches(in: part.text, range: NSRange(part.text.startIndex..., in: part.text)) {
+                    guard originalBoundaries.contains(originalOffset + NSMaxRange(match.range)),
+                          candidateBoundaries.contains(candidateOffset + NSMaxRange(match.range)) else { continue }
+                    guard let range = Range(match.range, in: part.text) else { continue }
+                    let text = String(part.text[start..<range.upperBound])
+                    before += text; after += text; flush()
+                    start = range.upperBound
+                }
+                before += part.text[start...]; after += part.text[start...]
+                originalOffset += part.text.utf16.count; candidateOffset += part.text.utf16.count
+            }
+        }
+        flush()
+        self.passages = passages
+        self.accepted = passages.map(\.original)
+    }
+    /// Apply allowances to the full recording, including previously accepted edits.
+    /// Splitting a review must never multiply short-message allowances or weaken the
+    /// protection of literals, numbers, names, qualifiers and emphasis across boundaries.
+    public func rejection(at index: Int, protectedTerms: String, limits: CleanupLimits) -> String? {
+        var proposed = accepted
+        proposed[index] = passages[index].candidate
+        return CleanupPolicy.rejection(original: original, candidate: proposed.joined(),
+                                       protectedTerms: protectedTerms, limits: limits)
+    }
+    public mutating func accept(_ index: Int) { accepted[index] = passages[index].candidate }
 }
 
 public enum TranscriptDiff {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme LastUpgradeVersion="2710" version="1.3">
+ <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="YES"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="0AD4B07A83E05DBD45B7FC37" BuildableName="BriefPreview.app" BlueprintName="BriefPreview" ReferencedContainer="container:BriefPreview.xcodeproj"/></BuildActionEntry></BuildActionEntries></BuildAction>
+ <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.PosixSpawn" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES"><BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="0AD4B07A83E05DBD45B7FC37" BuildableName="BriefPreview.app" BlueprintName="BriefPreview" ReferencedContainer="container:BriefPreview.xcodeproj"/></BuildableProductRunnable></LaunchAction>
+ <AnalyzeAction buildConfiguration="Debug"/>
+</Scheme>

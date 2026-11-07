@@ -1,5 +1,41 @@
 # macOS validation — 19 October 2026
 
+## Progress strip and level meter — 7 November 2026
+
+Restyled the stage strip as a recessed track using system colours, with ticks for passed stages and a coloured pill for the current stage. Centred the level meter across the cell's body and reserved footer without changing cell height. Replaced the spinner's repeating implicit animation with a clock-driven rotation after a render showed a detached arc.
+
+Verified with `Scripts/check.sh` and by inspecting rendered states in light and dark appearance. Not verified with a live microphone.
+
+## Stable cells and partial cleanup — 7 November 2026
+
+Moved stages and their activity indicators into a fixed row at each cell’s top left, with contextual controls on the right. Removed the grip bar and redundant recording captions. Preparation, recording, saving, queueing, transcription, and cleanup all measure 148 points high. The longer completed-text fixture measures 171 points; text measurement uses the actual displayed diff, without counting unchanged text twice.
+
+The native layout diagnostic measures actual SwiftUI cells and the panel’s frame during completion. It observed intermediate frames while the panel expanded from 232 to 255 points. The panel owns its animated dimensions, the hosting content stays top aligned, and Reduce Motion disables animation. Automatic hosting-view minimum/maximum bounds had been forcing the final size; see Apple’s [NSHostingView sizing options](https://developer.apple.com/documentation/swiftui/nshostingview/sizingoptions). The height preference now retains the nonzero content measurement.
+
+Cleanup allowances already scale with the whole transcript. The previous all-or-nothing qualifier rejection was reproduced on 251-, 1,518-, and 4,561-character synthetic inputs: all three retained their entire originals. The revised worker reviews changed passages independently with neighbouring context, while validating each cumulative result against the full original. Numeric/literal/qualifier/emphasis/name checks and the shared edit/growth budget still apply. Rejected passages remain original; accepted changes elsewhere survive. Typographic apostrophe changes no longer look like dropped negation.
+
+Verified:
+
+- 92 core tests in 15 suites, including proportional limits at 100/1,000/5,000 tokens, partial rejection, preservation across sentence boundaries, exact reconstruction, and a single shared minimum edit allowance.
+- All 17 local model evaluation cases passed: 14 existing fixtures (including one explicitly accepted conservative fallback) and three new length cases. The length cases removed 2, 12, and 36 test stutters while preserving all 1, 6, and 18 protected statements and repeated qualifiers. The final optimized evaluation took 1.42, 5.35, and 15.07 seconds on this Mac. These are synthetic comparisons, not guarantees for arbitrary recordings.
+- Native equal-height and animation checks, the multiple-recording lifecycle/clipboard checks, early-copy checks, signed optimized packaging, and the packaged Metal self-test pass. Rendered and inspected recording, cleanup, completion, and stacked cells.
+
+Repeat the geometry/animation check with `Brief --check-recording-layout`; snapshots are written to `/tmp/brief-layout-<stage>.png`. Include the longer model cases with `python3 Scripts/evaluate-cleanup.py --model /path/to/model --length-checks`. The recording-based processing deadline remains unchanged.
+
+## Overlapping recordings — 7 November 2026
+
+Capture now remains available while saved recordings queue for transcription and wording cleanup. Every recording has its own panel cell. Overlapping captures share an ordered clipboard group; the next capture after all members finish starts a new group. Count retention preserves whole groups. Grouped results use the combined clipboard; standalone recordings retain automatic insertion.
+
+Verified locally:
+
+- 85 core tests across 14 suites, including chained overlap, capture-order assembly, per-member cleanup/original selection, fresh groups, 150-member chains, group retention, metadata compatibility, and expired text removal.
+- `Brief --check-multiple-recordings` drives the real controller and history store with scripted microphone/worker implementations and a private pasteboard. Covers recording during ASR and cleanup, held-shortcut callbacks, queued work, independent completion/cancellation, cleanup skip/fallback, original pinning, fresh clipboard replacement, errors, empty speech, retention, and shutdown recovery.
+- Existing `--check-cleanup-copy` passes, including disabled automatic copy and preservation of an explicit original/newer clipboard choice.
+- `Scripts/check.sh` builds and signs the app, runs both controller checks and core tests, and passes the packaged MLX Metal self-test.
+- Rendered and inspected the actual SwiftUI panel with three simultaneous cells (cleanup, queued, recording), including its adaptive height. Reproduce with `build/Brief.app/Contents/MacOS/Brief --check-multiple-recordings --snapshot-multiple-recordings`; the synthetic image is written to `/tmp/brief-recording-stack.png`.
+
+These checks use synthetic capture/worker results, not live microphone speech. The development build is `build/Brief.app`; the installed Developer ID release in `/Applications` was not replaced with the locally development-signed build.
+
 ## Current state
 
 The project builds a signed, launchable Apple Silicon menu-bar app. The model is now installed and native loading plus offline synthetic recognition are verified. OS permissions, real microphone speech, and end-to-end delivery acceptance remain open. The entries below preserve earlier checks chronologically; see the latest recognition evaluation at the end.

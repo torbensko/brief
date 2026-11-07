@@ -13,7 +13,16 @@ public struct RecoveryPolicy: Codable, Equatable, Sendable {
             .sorted { $0.createdAt > $1.createdAt }
         let candidates: [DictationSession]
         switch mode {
-        case .count: candidates = Array(settled.dropFirst(max(1, value)))
+        case .count:
+            // Overlapping recordings are one recovery unit, just as they are one
+            // clipboard unit. Never discard earlier pieces of the latest dictation.
+            var retainedGroups = Set<UUID>()
+            candidates = settled.filter { session in
+                let group = session.clipboardGroupID ?? session.id
+                if retainedGroups.contains(group) { return false }
+                if retainedGroups.count < max(1, value) { retainedGroups.insert(group); return false }
+                return true
+            }
         case .minutes:
             candidates = settled.filter {
                 let availableAt = $0.cleanup?.createdAt ?? $0.attempts.last?.createdAt ?? $0.updatedAt

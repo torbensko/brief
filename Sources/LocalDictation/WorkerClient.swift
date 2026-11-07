@@ -3,7 +3,14 @@ import Darwin
 import DictationCore
 
 @MainActor
-final class WorkerClient {
+protocol DictationWorking: AnyObject {
+    var onExit: (() -> Void)? { get set }
+    func request(_ request: WorkerRequest) async throws -> WorkerResponse
+    func stop()
+}
+
+@MainActor
+final class WorkerClient: DictationWorking {
     private var process: Process?
     private var input: FileHandle?
     private var output: FileHandle?

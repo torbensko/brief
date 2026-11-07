@@ -14,6 +14,22 @@ struct LocalDictationApp {
             return
         }
         let app = NSApplication.shared
+        if CommandLine.arguments.contains("--check-recording-layout") {
+            Task {
+                do { try await RecordingLayoutDiagnostics.run(); exit(0) }
+                catch { fputs("Recording layout check failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            }
+            app.run()
+            return
+        }
+        if CommandLine.arguments.contains("--check-multiple-recordings") {
+            Task {
+                do { try await RecordingDiagnostics.run(); exit(0) }
+                catch { fputs("Multiple recording check failed: \(error.localizedDescription)\n", stderr); exit(1) }
+            }
+            app.run()
+            return
+        }
         if CommandLine.arguments.contains("--check-cleanup-copy") {
             Task {
                 do { try await CleanupDiagnostics.checkEarlyCopy(); exit(0) }
@@ -147,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         add(controller.modelLoaded ? "Model loaded" : "Model not loaded", nil, enabled: false)
         menu.addItem(.separator())
         add(controller.phase == .recording ? "Stop recording" : "Record", #selector(record),
-            enabled: !controller.isBusy || controller.phase == .recording)
+            enabled: controller.canStartRecording || controller.phase == .recording)
         add("Insert pending", #selector(insert), enabled: !controller.isBusy && controller.pendingSession != nil)
         add("Recent dictation", #selector(showHistory))
         add("Show last text", #selector(showLatest), enabled: controller.latestTranscript != nil)
@@ -198,9 +214,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let panel = RecordingPanel(contentRect: NSRect(x: 0, y: 0, width: 482, height: 228),
                 styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.restorePosition()
-            panel.contentView = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller) { [weak panel] height in
+            let content = FirstMouseHostingView(rootView: RecordingOverlay(controller: controller) { [weak panel] height in
                 panel?.resizeToContent(height)
             })
+            // The panel owns its animated size. Hosting-view minimum-size updates
+            // would otherwise force it to the final height before it can animate.
+            content.sizingOptions = []
+            content.autoresizingMask = [.width, .height]
+            content.frame = NSRect(origin: .zero, size: panel.contentLayoutRect.size)
+            panel.contentView = content
             panel.title = "Latest dictation"
             panel.isOpaque = false
             panel.backgroundColor = .clear

@@ -5,18 +5,22 @@ import DictationCore
 
 @MainActor
 final class AppController: ObservableObject {
-    enum Phase: String { case idle, preparing, recording, stopping, transcribing, loading, downloading }
+    enum Phase: String { case idle, preparing, recording, stopping, loading, downloading }
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var sessions: [DictationSession] = []
     @Published private(set) var settings: AppSettings
     @Published var message = "Ready to record"
     @Published var errorMessage: String?
-    @Published private(set) var noSpeechDetected = false
-    @Published private(set) var tidyingWording = false
+    @Published private(set) var batch = RecordingBatch()
+    @Published private(set) var processingSessionID: UUID?
     private var cleanupSkipped = false
-    @Published private(set) var cleanupPreview: DictationSession?
-    private var originalTakenSessionID: UUID?
-    @Published private(set) var deliveryConfirmed = false
+    var cleanupPreview: DictationSession? {
+        guard let item = batch.items.first(where: { $0.stage == .cleaning }) else { return nil }
+        return sessions.first { $0.id == item.id }
+    }
+    var tidyingWording: Bool { batch.items.contains { $0.stage == .cleaning } }
+    var hasProcessing: Bool { processingTask != nil }
+    var canStartRecording: Bool { phase == .idle && !shuttingDown }
     @Published private(set) var historyWarnings: [String] = []
     @Published private(set) var elapsed: Double = 0
     @Published private(set) var levels = [Float](repeating: 0.03, count: 28)
@@ -36,13 +40,28 @@ final class AppController: ObservableObject {
     let store: HistoryStore
     let hotKeys = HotKeyManager()
     private let settingsURL: URL
-    private let worker = WorkerClient()
-    private let cleanupWorker = WorkerClient()
-    private let recorder = AudioRecorder()
+    private let worker: any DictationWorking
+    private let cleanupWorker: any DictationWorking
+    private let recorder: any RecordingAudio
+    private let requestMicrophonePermission: () async -> Bool
     private let insertion = InsertionService()
+    private let captureFocus: () -> FocusTarget?
     private let transcriptPasteboard: NSPasteboard
     private let installer = ModelInstaller()
     private var operationTask: Task<Void, Never>?
+    private struct ProcessingJob {
+        var session: DictationSession
+        var automaticInsertion: Bool
+    }
+    private struct DeliveryContext {
+        var target: FocusTarget?
+        var focusChanged: Bool
+    }
+    private var deliveryContexts: [UUID: DeliveryContext] = [:]
+    private var processingQueue: [ProcessingJob] = []
+    private var processingTask: Task<Void, Never>?
+    private var currentProcessingTask: Task<Void, Never>?
+    private var shuttingDown = false
     private var overlayDismissTask: Task<Void, Never>?
     private var recoveryTimer: Timer?
     private var ticker: Timer?
@@ -56,7 +75,7 @@ final class AppController: ObservableObject {
     private var stagedSessionID: UUID?
     private var player: AVAudioPlayer?
     private var activity: NSObjectProtocol?
-    var isBusy: Bool { phase != .idle }
+    var isBusy: Bool { phase != .idle || batch.isActive || processingTask != nil }
     var pendingSession: DictationSession? {
         if let id = stagedSessionID, let value = sessions.first(where: { $0.id == id && $0.canInsert && $0.delivery == .pending }) {
             return value
@@ -67,7 +86,16 @@ final class AppController: ObservableObject {
         !settings.modelDirectory.isEmpty && FileManager.default.fileExists(atPath: settings.modelDirectory)
     }
 
-    init(storageRoot: URL? = nil, transcriptPasteboard: NSPasteboard = .general) throws {
+    init(storageRoot: URL? = nil, transcriptPasteboard: NSPasteboard = .general,
+         recorder: (any RecordingAudio)? = nil, worker: (any DictationWorking)? = nil,
+         cleanupWorker: (any DictationWorking)? = nil,
+         requestMicrophonePermission: (() async -> Bool)? = nil,
+         captureFocus: (() -> FocusTarget?)? = nil) throws {
+        self.captureFocus = captureFocus ?? { InsertionService().capture() }
+        self.recorder = recorder ?? AudioRecorder()
+        self.worker = worker ?? WorkerClient()
+        self.cleanupWorker = cleanupWorker ?? WorkerClient()
+        self.requestMicrophonePermission = requestMicrophonePermission ?? { await AudioRecorder.requestPermission() }
         self.transcriptPasteboard = transcriptPasteboard
         root = try storageRoot ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                            appropriateFor: nil, create: true).appendingPathComponent("LocalDictation", isDirectory: true)
@@ -75,7 +103,7 @@ final class AppController: ObservableObject {
         settingsURL = root.appendingPathComponent("settings.json")
         settings = try SettingsFile.load(from: settingsURL)
         store = try HistoryStore(root: root.appendingPathComponent("Sessions", isDirectory: true))
-        worker.onExit = { [weak self] in self?.modelLoaded = false }
+        self.worker.onExit = { [weak self] in self?.modelLoaded = false }
         hotKeys.onAction = { [weak self] id, down in
             switch id {
             case 1: self?.recordShortcut(down: down)
@@ -104,12 +132,16 @@ final class AppController: ObservableObject {
             if !isBusy {
                 // Do not displace the last usable transcript merely because a newer attempt failed.
                 let before = try await store.snapshot()
+                let latest = before.sessions.first(where: { $0.canInsert })
                 let protected: Set<UUID> = settings.effectiveRecoveryPolicy.mode == .count
-                    ? Set(before.sessions.first(where: { $0.canInsert }).map { [$0.id] } ?? []) : []
+                    ? Set(before.sessions.filter { session in
+                        session.id == latest?.id || (latest?.clipboardGroupID != nil && session.clipboardGroupID == latest?.clipboardGroupID)
+                    }.map(\.id)) : []
                 try await store.prune(settings.effectiveRecoveryPolicy, protecting: protected)
             }
             let snapshot = try await store.snapshot()
-            if sessions.contains(where: { old in !snapshot.sessions.contains(where: { $0.id == old.id }) }) { stopPlayback() }
+            let expired = Set(sessions.map(\.id)).subtracting(snapshot.sessions.map(\.id))
+            if !expired.isEmpty { stopPlayback(); batch.removeExpired(expired) }
             sessions = snapshot.sessions; historyWarnings = snapshot.warnings
             if selectedSessionID == nil || !sessions.contains(where: { $0.id == selectedSessionID }) {
                 selectedSessionID = latestTranscript?.id ?? sessions.first?.id
@@ -134,7 +166,7 @@ final class AppController: ObservableObject {
     }
     private func recordShortcut(down: Bool) {
         let action = recordingGesture.handle(down: down, mode: settings.effectiveRecordingMode,
-            idle: phase == .idle, preparing: phase == .preparing, recording: phase == .recording)
+            idle: canStartRecording, preparing: phase == .preparing, recording: phase == .recording)
         switch action {
         case .start, .stop, .toggle: toggleRecording()
         case .cancelPreparation: releasedDuringPreparation = true
@@ -147,66 +179,78 @@ final class AppController: ObservableObject {
     }
     func toggleRecording() {
         overlayDismissTask?.cancel()
-        switch phase {
-        case .idle:
+        if phase == .recording {
+            phase = .stopping
+            if let id = activeSessionID { batch.update(id, stage: .saving, message: "Saving audio…") }
+            operationTask = Task { await finishRecording(transcribe: true) }
+        } else if canStartRecording {
             releasedDuringPreparation = false
             phase = .preparing
-            target = insertion.capture()
+            let id = UUID()
+            activeSessionID = id
+            batch.begin(id)
+            target = captureFocus()
             focusChanged = target == nil
-            operationTask = Task { await startRecording() }
-        case .recording:
-            phase = .stopping
-            operationTask = Task { await finishRecording(transcribe: true) }
-        default:
-            message = "Finish or cancel the current operation first. Saved recordings remain in History."
+            errorMessage = nil
             showOverlay?()
+            operationTask = Task { await startRecording(id: id) }
         }
     }
-    private func startRecording() async {
-        noSpeechDetected = false
-        deliveryConfirmed = false
+    private func startRecording(id: UUID) async {
+        var created = false
         do {
-            guard await AudioRecorder.requestPermission() else {
+            guard await requestMicrophonePermission() else {
                 throw DictationError.message("Microphone permission is required. Enable Brief under System Settings → Privacy & Security → Microphone.")
             }
             guard !releasedDuringPreparation else {
-                phase = .idle; message = "Ready · hold the shortcut while speaking"; return
+                batch.update(id, stage: .complete, message: "Recording cancelled before the microphone was ready.")
+                releaseCapture(); showOverlayTemporarily(); return
             }
             let rate = try recorder.prepare()
-            var session = DictationSession(sampleRate: rate,
+            var session = DictationSession(id: id, sampleRate: rate,
                 profileName: "All projects", vocabulary: settings.vocabularyContext,
                 targetApplication: target?.application)
             session.language = settings.language
+            session.clipboardGroupID = batch.id
             try Vocabulary.validate(session.vocabulary)
-            try await store.create(session) // Persist recovery metadata before touching the microphone.
+            try await store.create(session)
+            created = true
             if releasedDuringPreparation {
-                try await store.update(session.id) { $0.state = .failed; $0.note = "Shortcut released before the microphone was ready." }
-                phase = .idle; message = "Ready · hold the shortcut while speaking"
-                await refreshHistory(); return
+                try await store.update(id) { $0.state = .failed; $0.note = "Shortcut released before the microphone was ready." }
+                _ = await recorder.stop()
+                batch.update(id, stage: .complete, message: "Recording cancelled before the microphone was ready.")
+                releaseCapture(); await refreshHistory(); showOverlayTemporarily(); return
             }
-            activeSessionID = session.id
-            try recorder.start(at: store.audioURL(for: session.id))
+            try recorder.start(at: store.audioURL(for: id))
             phase = .recording; elapsed = 0
             levels = Array(repeating: 0.03, count: 28)
             message = "Recording · \(session.profileName)"
-            errorMessage = nil
-            beginActivity()
-            startTicker()
+            batch.update(id, stage: .recording, message: "Microphone active")
+            beginActivity(); startTicker()
             showOverlay?()
             await refreshHistory()
         } catch {
             _ = await recorder.stop()
-            if let id = activeSessionID {
-                let description = error.localizedDescription
+            let description = error.localizedDescription
+            if created {
                 do { try await store.update(id) { $0.state = .failed; $0.note = description } }
                 catch { errorMessage = "Could not update recovery metadata: \(error.localizedDescription)" }
             }
-            phase = .idle; activeSessionID = nil; stopTicker(); endActivity()
+            batch.update(id, stage: .failed, message: description)
+            releaseCapture()
             report(error); await refreshHistory()
         }
     }
+    private func releaseCapture() {
+        phase = .idle; activeSessionID = nil; target = nil; focusChanged = false
+        settleActivity()
+    }
+    private func settleActivity() {
+        if !isBusy { stopTicker(); endActivity() }
+    }
     private func finishRecording(transcribe: Bool, failure: String? = nil) async {
-        guard let id = activeSessionID else { phase = .idle; return }
+        guard let id = activeSessionID else { releaseCapture(); return }
+        batch.update(id, stage: .saving, message: "Saving audio…")
         let result = await recorder.stop()
         let failure = failure ?? result.error
         do {
@@ -215,19 +259,20 @@ final class AppController: ObservableObject {
                 $0.state = failure == nil && result.frames > 0 ? .captured : .failed
                 $0.note = failure ?? (result.frames == 0 ? "No audio samples were captured." : nil)
             }
-            await refreshHistory()
             if transcribe && failure == nil && result.frames > 0 {
-                phase = .transcribing
-                await transcribeSession(session, automaticInsertion: true)
+                deliveryContexts[id] = DeliveryContext(target: target, focusChanged: focusChanged)
+                enqueue(session, automaticInsertion: true)
             } else {
-                phase = .idle; activeSessionID = nil; stopTicker(); endActivity()
-                message = failure ?? "Audio saved to History."
-                showOverlayTemporarily()
+                message = failure ?? (result.frames == 0 ? "No audio samples were captured." : "Audio saved to History.")
+                batch.update(id, stage: failure == nil ? .complete : .failed, message: message)
             }
+            // Capture is free as soon as its audio is committed. Inference owns a separate task.
+            releaseCapture()
+            await refreshHistory()
+            showOverlayTemporarily()
         } catch {
-            // Do not start recognition if its source recording metadata cannot be committed.
-            phase = .idle; activeSessionID = nil; stopTicker(); endActivity()
-            report(error)
+            batch.update(id, stage: .failed, message: error.localizedDescription)
+            releaseCapture(); report(error)
         }
     }
     func stopAndKeepAudio() {
@@ -237,55 +282,74 @@ final class AppController: ObservableObject {
     }
     func retry(_ session: DictationSession, useCurrentVocabulary: Bool) {
         guard !isBusy else { return }
-        phase = .transcribing
-        activeSessionID = session.id
-        focusChanged = true; target = nil
+        batch.begin(session.id, stage: .queued)
+        batch.update(session.id, message: "Queued for transcription")
         beginActivity()
+        // Reserve capture while the retry snapshot is saved, then release it to new recordings.
+        phase = .stopping
         operationTask = Task {
             do {
                 var saved = session
                 if useCurrentVocabulary {
                     let context = settings.vocabularyContext
-                    let profile = "All projects"
                     let language = settings.language
                     saved = try await store.update(session.id) {
-                        $0.vocabulary = context; $0.profileName = profile; $0.language = language
+                        $0.vocabulary = context; $0.profileName = "All projects"; $0.language = language
                     }
                 }
-                await transcribeSession(saved, automaticInsertion: false)
-            } catch { phase = .idle; activeSessionID = nil; endActivity(); report(error) }
+                enqueue(saved, automaticInsertion: false)
+                phase = .idle
+            } catch {
+                batch.update(session.id, stage: .failed, message: error.localizedDescription)
+                phase = .idle; settleActivity(); report(error)
+            }
+        }
+    }
+    private func enqueue(_ session: DictationSession, automaticInsertion: Bool) {
+        batch.update(session.id, stage: .queued, message: "Queued for transcription")
+        processingQueue.append(ProcessingJob(session: session, automaticInsertion: automaticInsertion))
+        beginActivity(); startTicker()
+        guard processingTask == nil else { return }
+        processingTask = Task {
+            while !processingQueue.isEmpty {
+                let job = processingQueue.removeFirst()
+                processingSessionID = job.session.id
+                let task = Task { await transcribeSession(job.session, automaticInsertion: job.automaticInsertion) }
+                currentProcessingTask = task
+                await task.value
+                currentProcessingTask = nil
+                processingSessionID = nil
+                deliveryContexts.removeValue(forKey: job.session.id)
+            }
+            processingTask = nil
+            settleActivity()
+            await refreshHistory()
+            showOverlayTemporarily()
         }
     }
     private func transcribeSession(_ session: DictationSession, automaticInsertion: Bool) async {
-        noSpeechDetected = false
-        deliveryConfirmed = false
-        originalTakenSessionID = nil
-        defer {
-            cleanupPreview = nil; tidyingWording = false
-            phase = .idle; activeSessionID = nil; stopTicker(); endActivity()
-            Task { await refreshHistory() }
-        }
         do {
+            try Task.checkCancellation()
             guard modelAvailable else {
                 throw DictationError.message("Audio saved. Download or choose a local model in Settings, then retry from History.")
             }
+            batch.update(session.id, stage: .transcribing, message: "Transcribing locally…")
+            if activeSessionID == nil { message = "Transcribing locally…" }
             try await store.update(session.id) { $0.state = .transcribing; $0.note = nil }
-            message = "Transcribing locally…"
             showOverlay?(); await refreshHistory()
+            try Task.checkCancellation()
             let response = try await worker.request(WorkerRequest(operation: .transcribe,
                 modelDirectory: settings.modelDirectory, audioPath: store.audioURL(for: session.id).path,
                 sampleRate: session.sampleRate, context: session.vocabulary, language: session.language,
                 tokenBudgetMultiplier: settings.tokenBudgetMultiplier))
+            try Task.checkCancellation()
             modelLoaded = true
             guard let attempt = response.attempt else { throw DictationError.message("The recogniser returned no transcription result.") }
-            // Commit the transcript before any delivery attempt. Failure to save prevents insertion.
             try await store.appendAttempt(attempt, to: session.id)
             await refreshHistory()
             selectedSessionID = session.id
             if attempt.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                noSpeechDetected = true
-                message = "No speech detected · nothing inserted"
-                showOverlayTemporarily()
+                batch.update(session.id, stage: .complete, message: "No speech detected · nothing copied")
                 return
             }
             if settings.effectiveTidyWording && attempt.warnings.isEmpty {
@@ -307,62 +371,76 @@ final class AppController: ObservableObject {
                     $0.note = description
                 }
             } catch { errorMessage = "Could not update the recording entry: \(error.localizedDescription)" }
-            message = description
-            await refreshHistory(); showOverlayTemporarily()
+            batch.update(session.id, stage: .failed, message: description)
+            await refreshHistory()
         }
     }
+    @discardableResult private func publishClipboard(_ text: String, for id: UUID, automaticallyCopy: Bool) -> Bool {
+        batch.publish(text, for: id)
+        guard !shuttingDown, settings.shouldCopyTranscript(text, newRecording: automaticallyCopy) else { return false }
+        return copyBatchText()
+    }
+    @discardableResult private func copyBatchText() -> Bool {
+        let text = batch.clipboardText
+        guard !text.isEmpty else { return false }
+        // Avoid unnecessary clipboard writes when cleanup leaves the text unchanged.
+        if transcriptPasteboard.string(forType: .string) == text { return true }
+        transcriptPasteboard.clearContents()
+        return transcriptPasteboard.setString(text, forType: .string)
+    }
+    func copyGroup() {
+        guard copyBatchText() else { return }
+        message = "Recordings copied in order"
+    }
     func finishTranscriptDelivery(_ session: DictationSession, attempt: TranscriptAttempt, automaticInsertion: Bool) async throws {
-        // Retire the early-copy action before any automatic clipboard or insertion work.
-        cleanupPreview = nil
-        if originalTakenSessionID == session.id {
+        try Task.checkCancellation()
+        if shuttingDown { throw CancellationError() }
+        if batch.items.first(where: { $0.id == session.id })?.originalChosen == true {
             let note = sessions.first(where: { $0.id == session.id })?.cleanup?.changed == true
                 ? "Original copied · tidied text ready" : "Original copied · text ready"
             try await store.update(session.id) { $0.delivery = .copied; $0.deliveryNote = note }
-            message = note
+            batch.update(session.id, stage: .complete, message: note)
             await refreshHistory()
-            showOverlayTemporarily()
             return
         }
         let deliveryText = sessions.first(where: { $0.id == session.id })?.text ?? attempt.text
-        message = attempt.warnings.isEmpty ? "Transcription saved · ready to insert" : "Saved · review needed in History"
-        var copied = false
-        if settings.shouldCopyTranscript(deliveryText, newRecording: automaticInsertion) {
-            transcriptPasteboard.clearContents()
-            copied = transcriptPasteboard.setString(deliveryText, forType: .string)
-            await saveDeliveryNote(copied ? "Copied to clipboard · press ⌘V to paste"
-                : "Could not copy automatically. Use Copy text.", for: session.id)
-        }
-        if automaticInsertion && settings.automaticInsertion,
+        let copied = publishClipboard(deliveryText, for: session.id, automaticallyCopy: automaticInsertion)
+        let note = copied ? (batch.isGrouped ? "Group copied · press ⌘V to paste" : "Copied to clipboard · press ⌘V to paste")
+            : (attempt.warnings.isEmpty ? "Transcription saved · ready to copy" : "Saved · review needed in History")
+        await saveDeliveryNote(note, for: session.id)
+        // A growing batch is delivered through its assembled clipboard. Pasting each
+        // completed member would split the user's dictation and disturb newer targets.
+        if automaticInsertion && settings.automaticInsertion && !batch.isGrouped,
            let saved = sessions.first(where: { $0.id == session.id }) {
+            try Task.checkCancellation()
             await deliver(saved, automatic: true, alreadyCopied: copied)
         }
-        showOverlayTemporarily()
+        batch.update(session.id, stage: .complete)
     }
     func beginCleanupPresentation(_ session: DictationSession, automaticallyCopy: Bool = false) {
-        activeSessionID = session.id
-        phase = .transcribing
-        cleanupPreview = session
-        tidyingWording = true
-        message = "Tidying wording · original ready to copy"
-        if let original = session.attempts.last?.text,
-           settings.shouldCopyTranscript(original, newRecording: automaticallyCopy) {
-            transcriptPasteboard.clearContents()
-            let copied = transcriptPasteboard.setString(original, forType: .string)
-            message = copied ? "Tidying wording · original on clipboard" : "Tidying wording · could not copy original"
+        // Also supports the isolated UI/clipboard diagnostics without a microphone.
+        if !batch.items.contains(where: { $0.id == session.id }) { batch.begin(session.id) }
+        batch.update(session.id, stage: .cleaning, message: "Tidying wording · original ready to copy")
+        if let original = session.attempts.last?.text {
+            let copied = publishClipboard(original, for: session.id, automaticallyCopy: automaticallyCopy)
+            if copied { batch.update(session.id, message: "Tidying wording · original on clipboard") }
         }
     }
-    func copyCleanupOriginal() {
-        guard phase == .transcribing, let session = cleanupPreview,
-              let original = session.attempts.last?.text, !original.isEmpty else { return }
+    func copyCleanupOriginal(_ id: UUID? = nil) {
+        guard let item = batch.items.first(where: { $0.stage == .cleaning && (id == nil || $0.id == id) }),
+              let original = sessions.first(where: { $0.id == item.id })?.attempts.last?.text,
+              !original.isEmpty else { return }
+        // Pin this member only, retaining every other available member in capture order.
+        // Commit the pin after copying succeeds so a clipboard failure remains retryable.
+        var updated = batch
+        updated.publish(original, for: item.id, chooseOriginal: true)
         transcriptPasteboard.clearContents()
-        guard transcriptPasteboard.setString(original, forType: .string) else {
-            message = "Could not copy original · tidying continues"
+        guard transcriptPasteboard.setString(updated.clipboardText, forType: .string) else {
+            batch.update(item.id, message: "Could not copy original · tidying continues")
             return
         }
-        // Taking the original is an explicit handoff: finishing cleanup must not
-        // replace this clipboard choice or paste a second version into another field.
-        originalTakenSessionID = session.id
-        message = "Original copied · tidying continues"
+        batch = updated
+        batch.update(item.id, message: "Original copied · tidying continues")
     }
     private func tidy(_ original: String, context: String, audioSeconds: Double) async throws -> TranscriptCleanup {
         func fallback(_ note: String) -> TranscriptCleanup {
@@ -377,14 +455,13 @@ final class AppController: ObservableObject {
         }
         let budget = CleanupPolicy.waitBudget(audioSeconds: audioSeconds)
         guard budget > 0 else { return fallback("Recording duration unavailable · original kept.") }
-        tidyingWording = true
         cleanupSkipped = false
         let started = ContinuousClock.now
         let timeout = Task { @MainActor [weak self] in
             do { try await Task.sleep(for: .seconds(budget)) } catch { return }
             self?.cleanupWorker.stop()
         }
-        defer { timeout.cancel(); cleanupWorker.stop(); tidyingWording = false }
+        defer { timeout.cancel(); cleanupWorker.stop() }
         do {
             let response = try await cleanupWorker.request(WorkerRequest(operation: .cleanup,
                 modelDirectory: path, text: original, context: context, cleanupLimits: settings.effectiveCleanupLimits))
@@ -401,8 +478,8 @@ final class AppController: ObservableObject {
             return fallback(cleanupSkipped ? "Cleanup skipped · original used." : "Cleanup exceeded its time limit or was unavailable · original used.")
         }
     }
-    func skipCleanup() {
-        guard tidyingWording else { return }
+    func skipCleanup(_ id: UUID? = nil) {
+        guard tidyingWording, id == nil || id == processingSessionID else { return }
         cleanupSkipped = true
         cleanupWorker.stop()
     }
@@ -446,13 +523,13 @@ final class AppController: ObservableObject {
         }
     }
     private func deliver(_ session: DictationSession, automatic: Bool, alreadyCopied: Bool = false) async {
-        deliveryConfirmed = false
         let recovery = alreadyCopied ? "Text is on the clipboard · press ⌘V to paste." : "Use Copy text."
         guard session.canInsert else { return }
-        let current = insertion.capture()
+        let context = deliveryContexts[session.id]
+        let current = captureFocus()
         let decision = DeliveryPolicy.decide(DeliveryConditions(automatic: automatic,
             automaticEnabled: settings.automaticInsertion, trusted: InsertionService.trusted,
-            sameTarget: target?.matches(current) == true, focusChangedDuringRecording: focusChanged,
+            sameTarget: context?.target?.matches(current) == true, focusChangedDuringRecording: context?.focusChanged ?? true,
             editable: current?.editable ?? false, secure: current?.secure ?? false,
             terminal: insertion.isTerminal(current), allowTerminal: settings.allowTerminalApps,
             requiresReview: session.state == .needsReview))
@@ -467,9 +544,10 @@ final class AppController: ObservableObject {
             let method = try insertion.method(for: current, allowPaste: settings.allowPasteFallback)
             // Persist intent before the side effect. A crash here must not cause an automatic retry.
             try await store.update(session.id) { $0.delivery = .insertionRequested }
-            guard current.matches(insertion.capture()) else {
+            guard !Task.isCancelled, !shuttingDown, (!automatic || !batch.isGrouped), current.matches(captureFocus()) else {
                 try await store.update(session.id) { $0.delivery = .pending }
-                await saveDeliveryNote("Not inserted: the focused field changed before delivery. \(recovery)", for: session.id)
+                let reason = automatic && batch.isGrouped ? "Recordings grouped for copying." : "Delivery stopped or the focused field changed."
+                await saveDeliveryNote("Not inserted. \(reason) \(recovery)", for: session.id)
                 return
             }
             let expected = insertion.expectedValue(for: current, text: session.text)
@@ -477,7 +555,7 @@ final class AppController: ObservableObject {
             let delivery: DeliveryState = method == .accessibility ? .inserted : .pasteRequested
             try await store.update(session.id) { $0.delivery = delivery }
             stagedSessionID = nil
-            deliveryConfirmed = await insertion.verifyInsertion(into: current, expected: expected)
+            let deliveryConfirmed = await insertion.verifyInsertion(into: current, expected: expected)
             if deliveryConfirmed {
                 try await store.update(session.id) { $0.delivery = .confirmed }
                 await saveDeliveryNote("Inserted into \(current.application)", for: session.id)
@@ -490,7 +568,8 @@ final class AppController: ObservableObject {
         await refreshHistory()
     }
     private func saveDeliveryNote(_ note: String, for id: UUID) async {
-        message = note
+        if activeSessionID == nil { message = note }
+        batch.update(id, message: note)
         do { try await store.update(id) { $0.deliveryNote = note } }
         catch { errorMessage = "Could not save delivery status: \(error.localizedDescription)" }
         await refreshHistory()
@@ -515,11 +594,12 @@ final class AppController: ObservableObject {
         do { var updated = settings; updated.recoveryPolicy = policy; try apply(updated) }
         catch { report(error) }
     }
-    func showLatestTranscript() { noSpeechDetected = false; deliveryConfirmed = false; showOverlayTemporarily() }
+    func showLatestTranscript() { showOverlayTemporarily() }
     func copy(_ session: DictationSession) {
         transcriptPasteboard.clearContents()
         guard transcriptPasteboard.setString(session.text, forType: .string) else { report(DictationError.message("Could not copy the transcript.")); return }
         message = "Copied to clipboard"
+        batch.update(session.id, message: "Copied to clipboard")
         Task {
             do { try await store.update(session.id) { $0.delivery = .copied }; await refreshHistory() }
             catch { report(error) }
@@ -616,17 +696,44 @@ final class AppController: ObservableObject {
             }
         }
     }
-    func cancelProcessing() {
-        guard [.transcribing, .loading, .downloading].contains(phase) else { return }
-        operationTask?.cancel()
-        worker.stop(); cleanupWorker.stop()
+    func cancelProcessing(_ id: UUID? = nil) {
+        if let id, id != processingSessionID {
+            guard let index = processingQueue.firstIndex(where: { $0.session.id == id }) else { return }
+            processingQueue.remove(at: index)
+            deliveryContexts.removeValue(forKey: id)
+            batch.update(id, message: "Stopping · keeping audio…")
+            Task {
+                do { try await store.update(id) { $0.state = .captured; $0.note = "Processing cancelled. Audio retained for retry." } }
+                catch { errorMessage = error.localizedDescription }
+                batch.update(id, stage: .complete, message: "Processing cancelled · audio saved")
+                settleActivity(); await refreshHistory(); showOverlayTemporarily()
+            }
+        } else if processingSessionID != nil {
+            currentProcessingTask?.cancel()
+            worker.stop(); cleanupWorker.stop()
+        } else if [.loading, .downloading].contains(phase) {
+            operationTask?.cancel()
+            worker.stop(); cleanupWorker.stop()
+        }
     }
     func shutdown() async {
+        shuttingDown = true
         overlayDismissTask?.cancel()
+        if phase == .preparing { releasedDuringPreparation = true }
         if phase == .stopping || phase == .preparing { await operationTask?.value }
         if phase == .recording { phase = .stopping; await finishRecording(transcribe: false) }
+        let queued = processingQueue
+        processingQueue.removeAll()
+        for job in queued {
+            _ = try? await store.update(job.session.id) { $0.state = .captured; $0.note = "App closed before transcription. Audio retained for retry." }
+            batch.update(job.session.id, stage: .complete, message: "Audio saved for retry")
+        }
+        currentProcessingTask?.cancel()
         operationTask?.cancel(); worker.stop(); cleanupWorker.stop()
+        await currentProcessingTask?.value
+        await processingTask?.value
         await operationTask?.value
+        overlayDismissTask?.cancel()
         recoveryTimer?.invalidate(); recoveryTimer = nil
         hotKeys.unregister(); stopTicker(); endActivity(); stopPlayback()
     }
@@ -663,16 +770,24 @@ final class AppController: ObservableObject {
             }
         }
         tickCount += 1
-        if tickCount % 5 == 0 && !focusChanged && [.recording, .stopping, .transcribing].contains(phase) {
-            focusChanged = target?.matches(insertion.capture()) != true
+        if tickCount % 5 == 0 {
+            let current = captureFocus()
+            if activeSessionID != nil && !focusChanged { focusChanged = target?.matches(current) != true }
+            for id in Array(deliveryContexts.keys) where deliveryContexts[id]?.focusChanged == false {
+                if deliveryContexts[id]?.target?.matches(current) != true { deliveryContexts[id]?.focusChanged = true }
+            }
         }
     }
     private func showOverlayTemporarily() {
+        guard !shuttingDown else { return }
         overlayDismissTask?.cancel(); showOverlay?()
+        let delay = !batch.isGrouped && latestTranscript?.delivery == .confirmed && latestTranscript?.cleanup?.changed != true ? 1 : 5
         overlayDismissTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(self?.deliveryConfirmed == true && self?.latestTranscript?.cleanup?.changed != true ? 1 : 5)) } catch { return }
-            guard let self, self.phase == .idle else { return }
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self, !self.isBusy, !self.shuttingDown else { return }
             if let fade = self.fadeOverlay { fade() } else { self.hideOverlay?() }
         }
     }
 }
+
+extension AppController: RecordingPresentation {}

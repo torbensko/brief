@@ -83,7 +83,16 @@ private final class AudioSink: @unchecked Sendable {
 }
 
 @MainActor
-final class AudioRecorder {
+protocol RecordingAudio: AnyObject {
+    var sampleRate: Double { get }
+    var snapshot: RecordingMeter { get }
+    func prepare() throws -> Double
+    func start(at url: URL) throws
+    func stop() async -> RecordingMeter
+}
+
+@MainActor
+final class AudioRecorder: RecordingAudio {
     private var engine: AVAudioEngine?
     private var sink: AudioSink?
     private var configurationObserver: NSObjectProtocol?
