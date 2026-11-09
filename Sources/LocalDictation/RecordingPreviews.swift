@@ -12,6 +12,7 @@ enum RecordingPreviewScenario: String, CaseIterable {
     case transcribing = "Transcribing"
     case cleaning = "Clean up"
     case complete = "Complete"
+    case stopped = "Audio only"
     case failed = "Error"
     case stacked = "Stacked recordings"
 
@@ -23,6 +24,7 @@ enum RecordingPreviewScenario: String, CaseIterable {
         case .transcribing: return [.transcribing]
         case .cleaning: return [.cleaning]
         case .complete: return [.complete]
+        case .stopped: return [.stopped]
         case .failed: return [.failed]
         case .stacked: return [.cleaning, .queued, .recording]
         }
@@ -33,9 +35,10 @@ enum RecordingPreviewScenario: String, CaseIterable {
 @MainActor struct RecordingProgressPreview: View {
     @State private var dark: Bool
     init(dark: Bool = false) { _dark = State(initialValue: dark) }
-    private let stages: [(String, RecordingBatch.Stage)] = [
-        ("Recording", .recording), ("Transcribing", .transcribing),
-        ("Cleaning up", .cleaning), ("Complete", .complete)
+    private let stages: [(String, RecordingBatch.Stage, Int?)] = [
+        ("Recording", .recording, nil), ("Transcribing", .transcribing, nil),
+        ("Cleaning up", .cleaning, nil), ("Complete", .complete, nil),
+        ("Complete without cleanup", .complete, 1), ("Audio only or cancelled", .stopped, 1)
     ]
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -44,10 +47,10 @@ enum RecordingPreviewScenario: String, CaseIterable {
                 Spacer()
                 Toggle("Dark", isOn: $dark).toggleStyle(.checkbox)
             }
-            ForEach(stages, id: \.1) { title, stage in
+            ForEach(stages, id: \.0) { title, stage, reached in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(title).font(.caption).foregroundStyle(.secondary)
-                    DictationProgress(stage: stage)
+                    DictationProgress(stage: stage, reachedStep: reached)
                 }
             }
         }.padding(28).frame(width: 360)
@@ -182,7 +185,7 @@ enum RecordingPreviewScenario: String, CaseIterable {
         case .cleaning:
             set(item.id, to: .complete)
             if let next = batch.items.first(where: { $0.stage == .queued }) { set(next.id, to: .transcribing) }
-        case .complete, .failed: break
+        case .complete, .stopped, .failed: break
         }
         lastAction = "Advanced one stage."
     }
@@ -200,12 +203,13 @@ enum RecordingPreviewScenario: String, CaseIterable {
     }
     func stopAndKeepAudio() {
         guard let item = batch.items.first(where: { $0.stage == .recording }) else { return }
-        batch.update(item.id, stage: .complete, message: "Audio saved")
+        batch.update(item.id, stage: .saving)
+        batch.update(item.id, stage: .stopped, message: "Audio saved")
         lastAction = "Keep audio selected (preview)."
     }
     func cancelProcessing(_ id: UUID?) {
         guard let id else { return }
-        batch.update(id, stage: .complete, message: "Processing cancelled · audio saved")
+        batch.update(id, stage: .stopped, message: "Processing cancelled · audio saved")
         lastAction = "Cancelled this simulated recording."
     }
     func skipCleanup(_ id: UUID?) {
@@ -252,6 +256,10 @@ enum RecordingPreviewScenario: String, CaseIterable {
             session.state = .failed
             status = "Transcription stopped. Your recording is saved for retry."
         case .queued, .saving: session.state = .captured
+        case .stopped:
+            session.state = .captured
+            status = "Audio saved"
+            batch.update(id, stage: .saving)
         case .transcribing: session.state = .transcribing
         case .preparing, .recording: session.state = .recording
         }

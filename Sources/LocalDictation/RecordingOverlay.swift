@@ -38,7 +38,8 @@ struct RecordingOverlay<Model: RecordingPresentation>: View {
                         if controller.batch.items.isEmpty {
                             if let latest = controller.latestTranscript {
                                 RecordingCell(controller: controller, id: latest.id, number: nil,
-                                              stage: .complete, status: latest.deliveryNote ?? "Text ready")
+                                              stage: .complete, reachedStep: latest.cleanup == nil ? 1 : 2,
+                                              status: latest.deliveryNote ?? "Text ready")
                             } else {
                                 Text(controller.message).font(.callout).frame(maxWidth: .infinity, alignment: .leading)
                             }
@@ -46,7 +47,7 @@ struct RecordingOverlay<Model: RecordingPresentation>: View {
                             ForEach(Array(controller.batch.items.enumerated()), id: \.element.id) { index, item in
                                 RecordingCell(controller: controller, id: item.id,
                                               number: controller.batch.isGrouped ? index + 1 : nil,
-                                              stage: item.stage, status: item.message)
+                                              stage: item.stage, reachedStep: item.reachedStep, status: item.message)
                                     .id(item.id)
                             }
                         }
@@ -89,6 +90,7 @@ struct RecordingCell<Model: RecordingPresentation>: View {
     let id: UUID
     let number: Int?
     let stage: RecordingBatch.Stage
+    var reachedStep: Int? = nil
     let status: String
     @State private var showChanges = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -99,7 +101,7 @@ struct RecordingCell<Model: RecordingPresentation>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                DictationProgress(stage: stage)
+                DictationProgress(stage: stage, reachedStep: reachedStep)
                     .overlay { PanelDragHandle().accessibilityHidden(true) }
                     .help("Drag to move this panel")
                 Spacer(minLength: 0)
@@ -165,7 +167,7 @@ struct RecordingCell<Model: RecordingPresentation>: View {
         case .cleaning:
             let detail = status.replacingOccurrences(of: "Tidying wording · ", with: "")
             return detail.prefix(1).uppercased() + detail.dropFirst()
-        case .complete, .failed:
+        case .complete, .stopped, .failed:
             return [session?.cleanup?.note, status].compactMap { $0 }.joined(separator: " ")
         }
     }
@@ -210,22 +212,18 @@ private struct LevelMeter: View {
 /// Reaching Complete does not imply successful insertion; delivery is reported separately.
 struct DictationProgress: View {
     let stage: RecordingBatch.Stage
+    /// The furthest step this recording actually ran; defaults to the stage's own position.
+    var reachedStep: Int? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let titles = ["Record", "Transcribe", "Clean", "Complete"]
     private let symbols = ["mic.fill", "text.bubble", "sparkles", "flag.checkered"]
-    private var active: Int? {
-        switch stage {
-        case .preparing, .recording: return 0
-        case .saving, .queued, .transcribing: return 1
-        case .cleaning: return 2
-        case .complete: return 3
-        case .failed: return nil
-        }
-    }
+    private var active: Int? { stage.step }
     private var isProcessing: Bool {
         [.preparing, .saving, .transcribing, .cleaning].contains(stage)
     }
-    private func isPassed(_ index: Int) -> Bool { index < (active ?? 0) }
+    private func isPassed(_ index: Int) -> Bool {
+        stage.hasPassed(index, reachedStep: reachedStep ?? stage.step ?? 0)
+    }
     private func labelStyle(for index: Int) -> AnyShapeStyle {
         guard index == active else {
             return isPassed(index) ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)

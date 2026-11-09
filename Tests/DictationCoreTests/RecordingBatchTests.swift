@@ -3,6 +3,37 @@ import Testing
 @testable import DictationCore
 
 @Suite("Overlapping recordings") struct RecordingBatchTests {
+    private func passedSteps(after stages: [RecordingBatch.Stage], starting: RecordingBatch.Stage = .preparing) throws -> [Int] {
+        var batch = RecordingBatch()
+        let id = UUID()
+        batch.begin(id, stage: starting)
+        for stage in stages { batch.update(id, stage: stage) }
+        let item = try #require(batch.items.first)
+        return (0..<4).filter { item.stage.hasPassed($0, reachedStep: item.reachedStep) }
+    }
+    @Test func onlyStagesThatRanAreMarkedPassed() throws {
+        // A full run ticks everything before Complete, which is shown as current.
+        #expect(try passedSteps(after: [.recording, .saving, .queued, .transcribing, .cleaning, .complete]) == [0, 1, 2])
+        // Tidy wording off, or no speech: cleanup never ran.
+        #expect(try passedSteps(after: [.recording, .saving, .queued, .transcribing, .complete]) == [0, 1])
+        // Audio only, or cancelled while queued: recording finished, nothing else ran.
+        #expect(try passedSteps(after: [.recording, .saving, .stopped]) == [0])
+        #expect(try passedSteps(after: [.recording, .saving, .queued, .stopped]) == [0])
+        // Cancelled before the microphone was ready: nothing finished.
+        #expect(try passedSteps(after: [.stopped]) == [])
+        // A failure does not tick the step it interrupted.
+        #expect(try passedSteps(after: [.recording, .saving, .transcribing, .failed]) == [0])
+        #expect(try passedSteps(after: [.recording, .saving, .transcribing, .cleaning, .failed]) == [0, 1])
+        // Retries start from saved audio.
+        #expect(try passedSteps(after: [.transcribing], starting: .queued) == [0])
+    }
+    @Test func stoppedRecordingsDoNotKeepTheBatchActive() {
+        var batch = RecordingBatch()
+        let a = UUID()
+        batch.begin(a)
+        batch.update(a, stage: .stopped)
+        #expect(!batch.isActive)
+    }
     @Test func chainedOverlapIncludesRecordingQueueAndCleanup() {
         var batch = RecordingBatch()
         let a = UUID(), b = UUID(), c = UUID()

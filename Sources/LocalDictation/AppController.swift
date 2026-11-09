@@ -203,7 +203,7 @@ final class AppController: ObservableObject {
                 throw DictationError.message("Microphone permission is required. Enable Brief under System Settings → Privacy & Security → Microphone.")
             }
             guard !releasedDuringPreparation else {
-                batch.update(id, stage: .complete, message: "Recording cancelled before the microphone was ready.")
+                batch.update(id, stage: .stopped, message: "Recording cancelled before the microphone was ready.")
                 releaseCapture(); showOverlayTemporarily(); return
             }
             let rate = try recorder.prepare()
@@ -218,7 +218,7 @@ final class AppController: ObservableObject {
             if releasedDuringPreparation {
                 try await store.update(id) { $0.state = .failed; $0.note = "Shortcut released before the microphone was ready." }
                 _ = await recorder.stop()
-                batch.update(id, stage: .complete, message: "Recording cancelled before the microphone was ready.")
+                batch.update(id, stage: .stopped, message: "Recording cancelled before the microphone was ready.")
                 releaseCapture(); await refreshHistory(); showOverlayTemporarily(); return
             }
             try recorder.start(at: store.audioURL(for: id))
@@ -264,7 +264,7 @@ final class AppController: ObservableObject {
                 enqueue(session, automaticInsertion: true)
             } else {
                 message = failure ?? (result.frames == 0 ? "No audio samples were captured." : "Audio saved to History.")
-                batch.update(id, stage: failure == nil ? .complete : .failed, message: message)
+                batch.update(id, stage: failure == nil ? .stopped : .failed, message: message)
             }
             // Capture is free as soon as its audio is committed. Inference owns a separate task.
             releaseCapture()
@@ -705,7 +705,7 @@ final class AppController: ObservableObject {
             Task {
                 do { try await store.update(id) { $0.state = .captured; $0.note = "Processing cancelled. Audio retained for retry." } }
                 catch { errorMessage = error.localizedDescription }
-                batch.update(id, stage: .complete, message: "Processing cancelled · audio saved")
+                batch.update(id, stage: .stopped, message: "Processing cancelled · audio saved")
                 settleActivity(); await refreshHistory(); showOverlayTemporarily()
             }
         } else if processingSessionID != nil {
@@ -726,7 +726,7 @@ final class AppController: ObservableObject {
         processingQueue.removeAll()
         for job in queued {
             _ = try? await store.update(job.session.id) { $0.state = .captured; $0.note = "App closed before transcription. Audio retained for retry." }
-            batch.update(job.session.id, stage: .complete, message: "Audio saved for retry")
+            batch.update(job.session.id, stage: .stopped, message: "Audio saved for retry")
         }
         currentProcessingTask?.cancel()
         operationTask?.cancel(); worker.stop(); cleanupWorker.stop()
